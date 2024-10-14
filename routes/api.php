@@ -1,29 +1,18 @@
 <?php
 
-use App\Http\Controllers\Api\AchievementController;
-use App\Http\Controllers\Api\AnnouncementController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\InformationController;
 use App\Http\Controllers\Api\CategoryNewsController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\Ctg_ServiceController;
 use App\Http\Controllers\Api\ServiceController;
-use App\Http\Controllers\Api\Event_ProgramController;
-use App\Http\Controllers\Api\AgendaController;
-use App\Http\Controllers\Api\BaseController;
-use App\Http\Controllers\Api\EntrantController;
-use App\Http\Controllers\Api\ContestController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\GalleryController;
-use App\Http\Controllers\Api\LiaisonController;
-use App\Http\Controllers\Api\SponsorController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
 use App\Http\Controllers\Api\Wilayah\KabupatenController;
 use App\Http\Controllers\Api\Wilayah\KecamatanController;
-
 use App\Http\Controllers\Api\Wilayah\ProvinsiController;
 use App\Models\Achievement;
 
@@ -108,66 +97,6 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::delete("/news/permanent/{id}", [NewsController::class, "deletePermanent"])->name("deleteNewsPermanent");
 
     // =======================================================================================================
-    // A C H I E V E M E N T 
-    // GET
-    Route::get('/achievement', [AchievementController::class, "getachievement"])->name("achievement");
-    // POST
-    Route::post("/achievement", [AchievementController::class, "save"])->name("createachievement");
-    Route::post("/achievement/restore", [AchievementController::class, "restore"])->name("restoreachievement");
-    Route::post("/achievement/restore/{id}", [AchievementController::class, "restoreById"])->name("restoreByIdachievement");
-
-    // PATCH
-    Route::patch("/achievement/{id}", [AchievementController::class, "update"])->name("editachievement");
-    // DELETE
-    Route::delete("/achievement/{id}", [AchievementController::class, "delete"])->name("deleteachievement");
-    // DELETE PERMANENT
-    Route::delete("/achievement/permanent/{id}", [AchievementController::class, "deletePermanent"])->name("deleteachievementPermanent");
-
-    // =======================================================================================================
-    // S P O N S O R
-    // GET
-    Route::get('/sponsor', [SponsorController::class, "getsponsor"])->name("sponsor");
-    // POST
-    Route::post("/sponsor", [SponsorController::class, "save"])->name("createsponsor");
-    // PATCH
-    Route::patch("/sponsor/{id}", [SponsorController::class, "update"])->name("editsponsor");
-    // DELETE
-    Route::delete("/sponsor/{id}", [SponsorController::class, "delete"])->name("deletesponsor");
-
-    // =======================================================================================================
-    // A N N O U N C E M E N T
-    // GET
-    Route::get('/announcement', [AnnouncementController::class, "getAnnouncement"])->name("announcement");
-    // POST
-    Route::post("/announcement", [AnnouncementController::class, "save"])->name("createAnnouncement");
-    Route::post("/announcement/restore", [AnnouncementController::class, "restore"])->name("restoreAnnouncement");
-    Route::post("/announcement/restore/{id}", [AnnouncementController::class, "restoreById"])->name("restoreByIdAnnouncement");
-
-    // PATCH
-    Route::patch("/announcement/{id}", [AnnouncementController::class, "update"])->name("editAnnouncement");
-    // DELETE
-    Route::delete("/announcement/{id}", [AnnouncementController::class, "delete"])->name("deleteAnnouncement");
-    // DELETE PERMANENT
-    Route::delete("/announcement/permanent/{id}", [AnnouncementController::class, "deletePermanent"])->name("deleteAnnouncementPermanent");
-
-    // =======================================================================================================
-    // A L I A S O N
-    // GET
-    Route::get('/liaison', [LiaisonController::class, "getLiaison"])->name("liaison");
-    // POST
-    Route::post("/liaison", [LiaisonController::class, "save"])->name("createLiaison");
-    Route::post("/liaison/restore", [LiaisonController::class, "restore"])->name("restoreLiaison");
-    Route::post("/liaison/restore/{id}", [LiaisonController::class, "restoreById"])->name("restoreByIdLiaison");
-
-    // PATCH
-    Route::patch("/liaison/{id}", [LiaisonController::class, "update"])->name("editLiaison");
-    // DELETE
-    Route::delete("/liaison/{id}", [LiaisonController::class, "delete"])->name("deleteLiaison");
-    // DELETE PERMANENT
-    Route::delete("/liaison/permanent/{id}", [LiaisonController::class, "deletePermanent"])->name("deleteLiaisonPermanent");
-
-
-    // =======================================================================================================
     // CTG_Service
     // //GET
     Route::get("/ctg-service", [Ctg_ServiceController::class, "index"])->name("Ctg-service");
@@ -193,60 +122,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/service/{id}", [ServiceController::class, "edit"])->name("editService");
     // DELETE
     Route::delete("/service/{id}", [ServiceController::class, "drop"])->name("deleteService");
-    // =======================================================================================================
-    // EVENT_PROGRAM
-    // //GET
-    Route::get("/event", [Event_ProgramController::class, "index"])->name("event");
-    // POST
-    Route::post("/event", [Event_ProgramController::class, "insert"])->name("createEvent_Program");
-    // PATCH
-    Route::patch("/event/{id}", [Event_ProgramController::class, "edit"])->name("editEvent_Program");
-    // DELETE
-    Route::delete("/event/{id}", [Event_ProgramController::class, "drop"])->name("deleteEvent_Program");
-    // =======================================================================================================
-    // Agenda
-    // //GET
-    Route::get("/agenda", [AgendaController::class, "index"])->name("agenda");
-    // Route::get("/agenda/{id}", [AgendaController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/agenda", [AgendaController::class, "insert"])->name("createAgenda");
-    // PATCH
-    Route::patch("/agenda/{id}", [AgendaController::class, "edit"])->name("editAgenda");
-    // DELETE
-    Route::delete("/agenda/{id}", [AgendaController::class, "drop"])->name("deleteAgenda");
-    // =======================================================================================================
-    // Base
-    // //GET
-    Route::get("/base", [BaseController::class, "index"])->name("base");
-    // Route::get("/base/{id}", [BaseController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/base", [BaseController::class, "insert"])->name("createBase");
-    // PATCH
-    Route::patch("/base/{id}", [BaseController::class, "edit"])->name("editBase");
-    // DELETE
-    Route::delete("/base/{id}", [BaseController::class, "drop"])->name("deleteBase");
-    // =======================================================================================================
-    // Entrant
-    // //GET
-    Route::get("/entrant", [EntrantController::class, "index"])->name("entrant");
-    // Route::get("/entrant/{id}", [EntrantController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/entrant", [EntrantController::class, "insert"])->name("createEntrant");
-    // PATCH
-    Route::patch("/entrant/{id}", [EntrantController::class, "edit"])->name("editEntrant");
-    // DELETE
-    Route::delete("/entrant/{id}", [EntrantController::class, "drop"])->name("deleteEntrant");
-    // =======================================================================================================
-    // Contest
-    // //GET
-    Route::get("/contest", [ContestController::class, "index"])->name("contest");
-    // Route::get("/contest/{id}", [ContestController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/contest", [ContestController::class, "insert"])->name("createContest");
-    // PATCH
-    Route::patch("/contest/{id}", [ContestController::class, "edit"])->name("editContest");
-    // DELETE
-    Route::delete("/contest/{id}", [ContestController::class, "drop"])->name("deleteContest");
+
     // =======================================================================================================
     // CTG_GALLERY
     // //GET
@@ -321,50 +197,11 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // Service
     Route::get("/public/service", [ServiceController::class, "index"])->name("service");
     Route::get("/public/service/dashboard", [Ctg_ServiceController::class, "dashboard"])->name("Ctg-dashboard");
-    Route::get("/public/service/tourism", [ServiceController::class, "tourism"])->name("tourism");
-    Route::get("/public/service/tourism/photo/{photo_reference}", [ServiceController::class, "tourismImage"])->name("tourism");
-
-
-    // =======================================================================================================
-    // EVENT_PROGRAM
-    Route::get("/public/event", [Event_ProgramController::class, "index"])->name("event");
-    // =======================================================================================================
-    // Agenda
-    Route::get("/public/agenda", [AgendaController::class, "index"])->name("agenda");
-    // =======================================================================================================
-    // Base
-    Route::get("/public/base", [BaseController::class, "index"])->name("base");
-    // =======================================================================================================
-    // Entrant
-    Route::get("/public/entrant", [EntrantController::class, "index"])->name("entrant");
-    // =======================================================================================================
-    // Contest
-    Route::get("/public/contest", [ContestController::class, "index"])->name("contest");
-    // =======================================================================================================
-
 
     // N E W S 
     // GET
     Route::get('/public/news', [NewsController::class, "getNews"])->name("news");
-
-    // A N N O U N C E M E N T
-    // GET
-    Route::get('/public/announcement', [AnnouncementController::class, "getAnnouncement"])->name("announcement");
-
     // =======================================================================================================
-    // A C H I E V E M E N T 
-    // GET
-    Route::get('/public/achievement', [AchievementController::class, "getachievement"])->name("achievement");
-
-    // =======================================================================================================
-    // S P O N S O R
-    // GET
-    Route::get('/public/sponsor', [SponsorController::class, "getsponsor"])->name("sponsor");
-
-    // =======================================================================================================
-    // A L I A S O N
-    // GET
-    Route::get('/public/liaison', [LiaisonController::class, "getLiaison"])->name("liaison");
 
     // C A T E G O R Y N E W S
     // //GET

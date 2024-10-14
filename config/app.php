@@ -197,7 +197,7 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
-        App\Providers\TTGServiceProvider::class,
+        App\Providers\GojamuServiceProvider::class,
         // App\Providers\SmartcityServiceProvider::class,
 
     ],

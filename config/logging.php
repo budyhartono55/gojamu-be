@@ -80,21 +80,21 @@ return [
 
         'job' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/ppidPembantu-ksb/job.log'),
+            'path' => storage_path('logs/gojamu-ksb/job.log'),
             'level' => 'debug',
             'days' => 7,
         ],
 
         'email' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/ppidPembantu-ksb/email.log'),
+            'path' => storage_path('logs/gojamu-ksb/email.log'),
             'level' => 'debug',
             'days' => 7,
         ],
 
         'api' => [
             'driver' => 'daily',
-            'path' => storage_path('logs/ttg-ksb/api.log'),
+            'path' => storage_path('logs/gojamu-ksb/api.log'),
             'level' => 'debug',
             'days' => 7,
         ],
