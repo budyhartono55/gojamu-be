@@ -18,8 +18,6 @@ return new class extends Migration
             $table->string("title_ctg")->nullable();
             $table->string("slug")->nullable(); //auto generate
             $table->string("icon")->nullable();
-            $table->string("react_icon")->nullable();
-            $table->string("color")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();

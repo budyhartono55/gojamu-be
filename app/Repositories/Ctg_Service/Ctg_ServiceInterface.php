@@ -8,8 +8,6 @@ interface Ctg_ServiceInterface
 {
     // getAll
     public function getCtg_Service($request);
-    public function getTotalCategoryServiceData($request);
-
     // public function getAllCtgService();
     // findOne
     public function findById($id);

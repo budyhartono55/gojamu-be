@@ -31,7 +31,7 @@ Route::group(
     ['middleware' => ['XssSanitizer']],
     function () {
         // register and login to get token
-        // Route::post('register', [AuthController::class, "register"]);
+        Route::post('register', [AuthController::class, "register"]);
         Route::post('login', [AuthController::class, "login"]);
 
         // Route::post('forgotPassword', [AuthController::class, "forgot_password"]);

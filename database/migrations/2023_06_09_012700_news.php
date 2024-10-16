@@ -30,7 +30,6 @@ return new class extends Migration
             $table->softDeletes();
             $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('category_id')->references('id')->on('category_news')->onDelete('cascade');
-            $table->foreign('event_id')->references('id')->on('event_program');
             $table->foreign('created_by')->references('id')->on('users');
             $table->foreign('edited_by')->references('id')->on('users');
         });

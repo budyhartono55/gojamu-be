@@ -23,10 +23,6 @@ class Ctg_ServiceController extends Controller
     {
         return $this->ctg_serviceRepository->getCtg_Service($request);
     }
-    public function dashboard(Request $request)
-    {
-        return $this->ctg_serviceRepository->getTotalCategoryServiceData($request);
-    }
     //findOne
     public function findById($id)
     {

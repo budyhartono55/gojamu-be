@@ -33,9 +33,4 @@ class Service extends Model
     {
         return $this->belongsTo(User::class, 'edited_by');
     }
-
-    public function kecamatan()
-    {
-        return $this->belongsTo(Kecamatan::class, 'district_id');
-    }
 }

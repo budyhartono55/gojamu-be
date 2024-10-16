@@ -63,19 +63,6 @@ class ServiceRepository implements ServiceInterface
             return self::getAllServices();
         }
     }
-    // public function getGmapsServices($request)
-    // {
-    //     $limit = Helper::limitDatas($request);
-    //     $getId = $request->id;
-    //     $getSearch = $request->search;
-    //     $nextPage = $request->page;
-
-    //     if (!empty($getId)) {
-    //         return self::getDetailsPlaceGoogleMaps($getId);
-    //     } else {
-    //         return self::getAllPlaceGmaps($getSearch, $nextPage);
-    //     }
-    // }
 
     public function getAllServices()
     {
@@ -89,7 +76,7 @@ class ServiceRepository implements ServiceInterface
                 return $this->success("(CACHE): List Keseluruhan Layanan", $result);
             }
 
-            $service = Service::with(['kecamatan', 'createdBy', 'editedBy', 'ctgServices'])
+            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
                 ->latest('created_at')
                 ->paginate(12);
 
@@ -100,13 +87,8 @@ class ServiceRepository implements ServiceInterface
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
                     $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
-                    $item->district_id = optional($item->kecamatan)->only(['id', 'nama']);
 
-                    if (isset($item->v_distance)) {
-                        $item->v_distance = $item->v_distance / 1000;
-                    }
-
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices, $item->kecamatan);
+                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
                     return $item;
                 }, $modifiedData);
 
@@ -119,12 +101,11 @@ class ServiceRepository implements ServiceInterface
         }
     }
 
-
     public function getAllServiceByKeywordInCtg($slug, $keyword, $limit)
     {
         try {
-            $key = $this->generalRedisKeys . "public_";
-            $keyAuth = $this->generalRedisKeys . "auth_";
+            $key = $this->generalRedisKeys . "public_" . '_limit#' . $limit;
+            $keyAuth = $this->generalRedisKeys . "auth_" . '_limit#' . $limit;
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $slug . "_" .  $keyword)) {
                 $result = json_decode(Redis::get($key . $slug . "_" .  $keyword));
@@ -136,7 +117,7 @@ class ServiceRepository implements ServiceInterface
                 return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
             }
 
-            $service = Service::with(['kecamatan', 'createdBy', 'editedBy', 'ctgServices'])
+            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
                 ->where('ctg_service_id', $category->id)
                 ->where(function ($query) use ($keyword) {
                     $query->where('title_service', 'LIKE', '%' . $keyword . '%')
@@ -153,12 +134,8 @@ class ServiceRepository implements ServiceInterface
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
                     $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
-                    $item->district_id = optional($item->kecamatan)->only(['id', 'nama']);
-                    if (isset($item->v_distance)) {
-                        $item->v_distance = $item->v_distance / 1000;
-                    }
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices, $item->kecamatan);
+                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
                     return $item;
                 }, $modifiedData);
 
@@ -187,7 +164,7 @@ class ServiceRepository implements ServiceInterface
             }
             $category = Ctg_Service::where('slug', $slug)->first();
             if ($category) {
-                $service = Service::with(['kecamatan', 'createdBy', 'editedBy', 'ctgServices'])
+                $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
                     ->where('ctg_service_id', $category->id)
                     ->latest('created_at')
                     ->paginate($limit);
@@ -199,12 +176,8 @@ class ServiceRepository implements ServiceInterface
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
                     $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
-                    $item->district_id = optional($item->kecamatan)->only(['id', 'nama']);
-                    if (isset($item->v_distance)) {
-                        $item->v_distance = $item->v_distance / 1000;
-                    }
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices, $item->kecamatan);
+                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
                     return $item;
                 }, $modifiedData);
 
@@ -223,15 +196,15 @@ class ServiceRepository implements ServiceInterface
     public function getAllServiceByKeyword($keyword, $limit)
     {
         try {
-            $key = $this->generalRedisKeys . "public_";
-            $keyAuth = $this->generalRedisKeys . "auth_";
+            $key = $this->generalRedisKeys . "public_" . '_limit#' . $limit;
+            $keyAuth = $this->generalRedisKeys . "auth_" . '_limit#' . $limit;
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $keyword)) {
                 $result = json_decode(Redis::get($key . $keyword));
                 return $this->success("(CACHE): List Layanan dengan keyword = ($keyword).", $result);
             }
 
-            $service = Service::with(['kecamatan', 'createdBy', 'editedBy', 'ctgServices'])
+            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
                 ->where(function ($query) use ($keyword) {
                     $query->where('title_service', 'LIKE', '%' . $keyword . '%')
                         ->orWhere('description', 'LIKE', '%' . $keyword . '%');
@@ -246,12 +219,8 @@ class ServiceRepository implements ServiceInterface
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
                     $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
-                    $item->district_id = optional($item->kecamatan)->only(['id', 'nama']);
-                    if (isset($item->v_distance)) {
-                        $item->v_distance = $item->v_distance / 1000;
-                    }
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices, $item->kecamatan);
+                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
                     return $item;
                 }, $modifiedData);
 
@@ -287,15 +256,10 @@ class ServiceRepository implements ServiceInterface
                 $createdBy = User::select('name')->find($service->created_by);
                 $editedBy = User::select('name')->find($service->edited_by);
                 $ctgServices = Ctg_Service::select(['id', 'title_ctg', 'slug'])->find($service->ctg_service_id);
-                $districtId = Kecamatan::select('id', 'nama')->find($service->district_id);
 
-                $service->district_id = optional($districtId)->only(['id', 'nama']);
                 $service->ctg_service_id = optional($ctgServices)->only(['id', 'title_ctg', 'slug']);
                 $service->created_by = optional($createdBy)->only(['name']);
                 $service->edited_by = optional($editedBy)->only(['name']);
-                if (isset($service->v_distance)) {
-                    $service->v_distance = $service->v_distance / 1000;
-                }
 
                 $key = Auth::check() ? $key : $key;
                 Redis::setex($key, 60, json_encode($service));
@@ -325,16 +289,11 @@ class ServiceRepository implements ServiceInterface
             if ($service) {
                 $createdBy = User::select('name')->find($service->created_by);
                 $editedBy = User::select('name')->find($service->edited_by);
-                $district = Kecamatan::select('id', 'nama')->find($service->district_id);
                 $ctgService = Ctg_Service::select('id', 'title_ctg', 'slug')->find($service->ctg_service_id);
 
                 $service->created_by = optional($createdBy)->only(['name']);
                 $service->edited_by = optional($editedBy)->only(['name']);
-                $service->district_id = optional($district)->only(['id', 'nama']);
                 $service->ctg_service_id = optional($ctgService)->only(['id', 'title_ctg', 'slug']);
-                if (isset($service->v_distance)) {
-                    $service->v_distance = $service->v_distance / 1000;
-                }
 
                 $key = Auth::check() ? $key : $key;
                 Redis::setex($key, 60, json_encode($service));
@@ -354,19 +313,19 @@ class ServiceRepository implements ServiceInterface
             $request->all(),
             [
                 'title_service' =>  'required',
-                'url_location' =>  'required',
+                'url' =>  'required',
                 'ctg_service_id' =>  'required',
-                'photo'          =>  'image|
-                                    mimes:jpeg,png,jpg,gif,svg|
+                'icon'          =>  'image|
+                                    mimes:jpeg,png,jpg,gif|
                                     max:3072',
             ],
             [
                 'title_service.required' => 'Mohon masukkan nama layanan!',
-                'url_location.required' => 'URL lokasi tidak boleh Kosong!',
+                'url.required' => 'URL tidak boleh Kosong!',
                 'ctg_service_id.required' => 'Masukkan ketegori layanan!',
-                'photo.image' => 'Pastikan file foto bertipe gambar',
-                'photo.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'photo.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'icon.image' => 'Pastikan file foto bertipe gambar',
+                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg dan gif',
+                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
             ]
         );
 
@@ -377,26 +336,7 @@ class ServiceRepository implements ServiceInterface
         try {
             $service = new Service();
             $service->title_service = $request->title_service;
-            $service->facility = $request->facility;
-            $service->description = $request->description;
-            $service->address = $request->address;
-            $service->url_location = $request->url_location;
-            $service->v_distance = $request->v_distance;
-            $service->v_duration = $request->v_duration;
-            $service->contact = $request->contact;
-            $service->email = $request->email;
-            $service->facebook = $request->facebook;
-            $service->instagram = $request->instagram;
-            $service->twitter = $request->twitter;
-            $service->youtube = $request->youtube;
-            $service->tiktok = $request->tiktok;
-            $service->website = $request->website;
-
-            // $placeName = urlencode($request->title_service);
-            // $gLink = "https://www.google.com/maps/search/$placeName";
-            // $service->url_location = $gLink;
-
-            $service->district_id = $request->district_id;
+            $service->url = $request->url;
             $service->slug = Str::slug($request->title_service, '-');
 
             $ctg_service_id = $request->ctg_service_id;
@@ -407,18 +347,18 @@ class ServiceRepository implements ServiceInterface
                 return $this->error("Tidak ditemukan!", "Kategori Service dengan ID = ($ctg_service_id) tidak ditemukan!", 404);
             }
 
-            if ($request->hasFile('photo')) {
-                $destination = 'public/images';
-                $t_destination = 'public/thumbnails/t_images';
-                $photo = $request->file('photo');
-                $imageName = $service->slug . "-" . time() . "." . $photo->getClientOriginalExtension();
+            if ($request->hasFile('icon')) {
+                $destination = 'public/icons';
+                $t_destination = 'public/thumbnails/t_icons';
+                $icon = $request->file('icon');
+                $iconName = $service->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $service->photo = $imageName;
+                $service->icon = $iconName;
                 //storeOriginal
-                $photo->storeAs($destination, $imageName);
+                $icon->storeAs($destination, $iconName);
 
                 // compress to thumbnail 
-                Helper::resizeImage($photo, $imageName, $request);
+                Helper::resizeIcon($icon, $iconName, $request);
             }
 
             $user = Auth::user();
@@ -442,16 +382,16 @@ class ServiceRepository implements ServiceInterface
             $request->all(),
             [
                 'title_service' =>  'required',
-                'photo'          =>  'image|
+                'icon'          =>  'image|
                                     mimes:jpeg,png,jpg,gif,svg|
                                     max:3072',
 
             ],
             [
                 'title_service.required' => 'Mohon masukkan nama layanan!',
-                'photo.image' => 'Pastikan file foto bertipe gambar',
-                'photo.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'photo.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'icon.image' => 'Pastikan file foto bertipe gambar',
+                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
+                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
             ]
         );
 

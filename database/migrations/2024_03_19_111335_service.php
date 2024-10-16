@@ -16,24 +16,9 @@ return new class extends Migration
         Schema::create('service', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string("title_service")->nullable();
-            $table->string("facility")->nullable();
-            $table->text("description")->nullable();
-            $table->string("address")->nullable();
-            $table->string("url_location")->nullable();
-            $table->string("v_distance")->nullable();
-            $table->string("v_duration")->nullable();
-            $table->string("contact")->nullable();
-            $table->string("email")->nullable();
-            $table->string("facebook")->nullable();
-            $table->string("instagram")->nullable();
-            $table->string("twitter")->nullable();
-            $table->string("youtube")->nullable();
-            $table->string("tiktok")->nullable();
-            $table->string("website")->nullable();
-            $table->string("slug")->nullable(); //auto
-            $table->string("photo")->nullable();
+            $table->string("icon")->nullable();
+            $table->text("url")->nullable();
             $table->string("ctg_service_id")->nullable();
-            $table->string("district_id")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();

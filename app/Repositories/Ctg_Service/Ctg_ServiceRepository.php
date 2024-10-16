@@ -46,65 +46,13 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
         }
     }
 
-    //dashboard
-    public function getTotalCategoryServiceData($request)
-    {
-        try {
-            $key = "Dashboard-CategoryServiceCount";
-            if (Redis::exists($key)) {
-                $result = json_decode(Redis::get($key), true);
-                return $this->success("(CACHE): List Total data -> Dashboard", $result);
-            }
-
-            $serviceData = Service::join('ctg_service', 'service.ctg_service_id', '=', 'ctg_service.id')
-                ->select('ctg_service.title_ctg as ctg_name', DB::raw('COUNT(service.id) as total'))
-                ->groupBy('service.ctg_service_id', 'ctg_service.title_ctg')
-                ->get();
-
-            if ($serviceData->isNotEmpty()) {
-                $serviceArray = $serviceData->toArray();
-                $totalServices = array_sum(array_column($serviceArray, 'total'));
-
-                $totalNews = DB::table('news')->count();
-                $totalEntrants = DB::table('entrant')->count();
-                $totalEvents = DB::table('event_program')->count();
-                $totalBase = DB::table('base')->count();
-                $totalAgenda = DB::table('agenda')->count();
-                $totalAnnounce = DB::table('announcement')->count();
-
-                $response = [
-                    'service_data' => $serviceArray,
-                    'total' => [
-                        'total_service' => 'Jumlah Total Keseluruhan Layanan',
-                        'total' => $totalServices
-                    ],
-                    'additional_counts' => [
-                        'total_news' => $totalNews,
-                        'total_entrants' => $totalEntrants,
-                        'total_events' => $totalEvents,
-                        'total_bases' => $totalBase,
-                        'total_agendas' => $totalAgenda,
-                        'total_announces' => $totalAnnounce,
-
-                    ]
-                ];
-
-                Redis::set($key, json_encode($response));
-                Redis::expire($key, 60); // Cache expiration time: 60 seconds
-                return $this->success("List Total data -> Dashboard", $response);
-            }
-
-            return $this->error("Tidak ditemukan!", "List Total data -> Dashboard Tidak Ditemukan!", 404);
-        } catch (\Exception $e) {
-            return $this->error("Internal Server Error!", $e->getMessage(), $e->getCode());
-        }
-    }
-
     // getAll
     public function getAllCtg_Service()
     {
         try {
-            $key = $this->generalRedisKeys . "All_" . request()->get('page', 1);
+            $key = $this->generalRedisKeys . "public_All_"  . request()->get('page', 1);
+            $keyAuth = $this->generalRedisKeys . "auth_All_" . request()->get('page', 1);
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("(CACHE): List Keseluruhan Kategori Service", $result);
@@ -124,13 +72,13 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
                     return $item;
                 }, $modifiedData);
 
-                Redis::set($key, json_encode($ctg_service));
-                Redis::expire($key, 60); // Cache for 60 seconds
+                $key = Auth::check() ? $keyAuth : $key;
+                Redis::setex($key, 60, json_encode($ctg_service));
 
                 return $this->success("List keseluruhan Kategori Service", $ctg_service);
             }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
 
@@ -138,7 +86,9 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
     public function getAllCtg_ServiceUnpaginate()
     {
         try {
-            $key = $this->generalRedisKeys . "All_Unpaginate";
+            $key = $this->generalRedisKeys . "public_All_Unpaginate_";
+            $keyAuth = $this->generalRedisKeys . "auth_All_Unpaginate_";
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("(CACHE): List Keseluruhan Kategori Service)", $result);
@@ -157,6 +107,7 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
                     return $item;
                 });
 
+                $key = Auth::check() ? $keyAuth : $key;
                 Redis::setex($key, 60, json_encode($modifiedData));
                 return $this->success("List keseluruhan Kategori Service-unpaginate", $modifiedData);
             }

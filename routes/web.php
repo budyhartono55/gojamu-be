@@ -19,7 +19,7 @@ Route::get('/', function () {
                 'code' => 200,
                 'error' => false,
                 'message' => "Welcome",
-                'results' => "API LAYANAN INFORMASI"
+                'results' => "API GOJAMU APP-SUMBAWA BARAT"
         ]);
 });
 Route::get('/file', [GetFileController::class, "getFile"])->middleware('XssSanitizer');
