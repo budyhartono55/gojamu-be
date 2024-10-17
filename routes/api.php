@@ -112,10 +112,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // //GET
     Route::get("/service", [ServiceController::class, "index"])->name("service");
     Route::get("/service/dashboard", [Ctg_ServiceController::class, "dashboard"])->name("Ctg-dashboard");
-    // Route::get("/service/tourism", [ServiceController::class, "tourism"])->name("tourism");
-    // Route::get("/service/tourism/photo/{photo_reference}", [ServiceController::class, "tourismImage"])->name("tourism");
-
-    // Route::get("/service/{id}", [ServiceController::class, "findById"])->name("findOne");
+    Route::get("/service/{id}", [ServiceController::class, "findById"])->name("findOne");
     // POST
     Route::post("/service", [ServiceController::class, "insert"])->name("createService");
     // PATCH
@@ -196,7 +193,7 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // =======================================================================================================
     // Service
     Route::get("/public/service", [ServiceController::class, "index"])->name("service");
-    Route::get("/public/service/dashboard", [Ctg_ServiceController::class, "dashboard"])->name("Ctg-dashboard");
+    Route::get("/public/service/{id}", [ServiceController::class, "findById"])->name("findOne");
 
     // N E W S 
     // GET

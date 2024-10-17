@@ -10,8 +10,7 @@ interface ServiceInterface
 {
     // getAll
     public function getServices($request);
-    // public function getGmapsServices($request);
-    // public function getImageGmapsServices($photo_reference);
+    public function findById($id);
     // insertData
     public function createService($request);
     // update

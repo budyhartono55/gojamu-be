@@ -156,15 +156,15 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
             [
                 'title_ctg'       => 'required',
                 'icon'           =>    'image|
-                                        mimes:jpeg,png,jpg,gif,svg|
+                                        mimes:jpeg,png,jpg,gif|
                                         max:3072',
 
             ],
             [
                 'title_ctg.required' => 'Mohon masukkan judul kategori!',
                 'icon.image' => 'Pastikan file Ikon bertipe gambar',
-                'icon.mimes' => 'Format Ikon yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'icon.max' => 'File Ikon terlalu besar, usahakan dibawah 2MB',
+                'icon.mimes' => 'Format Ikon yang diterima hanya jpeg, png, jpg, gif',
+                'icon.max' => 'File Ikon terlalu besar, usahakan dibawah 3MB',
             ]
         );
 
@@ -177,22 +177,18 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
             $slugExists = Ctg_Service::where('slug', Str::slug($request->title_ctg, '-'))->exists();
             if (!$slugExists) {
                 $ctg_service->title_ctg = $request->title_ctg;
-                $ctg_service->react_icon = $request->react_icon;
-                $ctg_service->color = $request->color;
                 $ctg_service->slug = Str::slug($request->title_ctg, '-');
 
                 if ($request->hasFile('icon')) {
                     $destination = 'public/icons';
-                    $t_destination = 'public/thumbnails/t_icons';
-                    $image = $request->file('icon');
-                    $imageName = $ctg_service->slug . '-' . time() . "." . $image->getClientOriginalExtension();
-
-                    $ctg_service->icon = $imageName;
+                    $icon = $request->file('icon');
+                    $iconName = $ctg_service->slug . '-' . time() . "." . $icon->getClientOriginalExtension();
+                    $ctg_service->icon = $iconName;
                     //storeOriginal
-                    $image->storeAs($destination, $imageName);
+                    $icon->storeAs($destination, $iconName);
 
                     // compress to thumbnail 
-                    Helper::resizeIcon($image, $imageName, $request);
+                    Helper::resizeIcon($icon, $iconName, $request);
                 }
 
                 $user = Auth::user();
@@ -219,9 +215,15 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
             $request->all(),
             [
                 'title_ctg'       => 'required',
+                'icon'           =>    'image|
+                                        mimes:jpeg,png,jpg,gif|
+                                        max:3072',
             ],
             [
                 'title_ctg.required' => 'Mohon masukkan judul kategori!',
+                'icon.image' => 'Pastikan file Ikon bertipe gambar',
+                'icon.mimes' => 'Format Ikon yang diterima hanya jpeg, png, jpg, gif',
+                'icon.max' => 'File Ikon terlalu besar, usahakan dibawah 3MB',
             ]
         );
 
@@ -240,8 +242,8 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
                         Storage::delete('public/thumbnails/t_icons/' . $ctg_service->icon);
                     }
                     $destination = 'public/icons';
-                    $t_destination = 'public/thumbnails/t_icons';
                     $image = $request->file('icon');
+                    $ctg_service['slug'] = Str::slug($request->title_ctg, '-');
                     $imageName = $ctg_service->slug . '-' . time() . "." . $image->getClientOriginalExtension();
 
                     $ctg_service->icon = $imageName;
@@ -252,8 +254,6 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
                 $ctg_service->icon = $ctg_service->icon;
             }
             $ctg_service['title_ctg'] = $request->title_ctg;
-            $ctg_service['react_icon'] = $request->react_icon;
-            $ctg_service['color'] = $request->color;
             $ctg_service['slug'] = Str::slug($request->title_ctg, '-');
 
             //ttd
@@ -281,6 +281,10 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
             $ctg_service = Ctg_Service::find($id);
             if (!$ctg_service) {
                 return $this->error("Not Found", "Kategori Service dengan ID = ($id) tidak ditemukan!", 404);
+            }
+            if ($ctg_service->icon) {
+                Storage::delete('public/icons/' . $ctg_service->icon);
+                Storage::delete('public/thumbnails/t_icons/' . $ctg_service->icon);
             }
             // approved
             $drop = $ctg_service->delete();

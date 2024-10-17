@@ -27,14 +27,10 @@ class ServiceController extends Controller
     {
         return $this->serviceRepository->getServices($request);
     }
-    // public function tourism(Request $request)
-    // {
-    //     return $this->serviceRepository->getGmapsServices($request);
-    // }
-    // public function tourismImage($photo_reference)
-    // {
-    //     return $this->serviceRepository->getImageGmapsServices($photo_reference);
-    // }
+    public function findById($id)
+    {
+        return $this->serviceRepository->findById($id);
+    }
     // create
     public function insert(Request $request)
     {

@@ -42,7 +42,6 @@ class ServiceRepository implements ServiceInterface
     public function getServices($request)
     {
         $limit = Helper::limitDatas($request);
-        $getId = $request->id;
         $getSlug = $request->slug;
         $getCategory = $request->ctg_slg;
         $getKeyword =  $request->search;
@@ -53,8 +52,6 @@ class ServiceRepository implements ServiceInterface
             } else {
                 return self::getAllServiceByCategorySlug($getCategory, $limit);
             }
-        } elseif (!empty($getId)) {
-            return self::findById($getId);
         } elseif (!empty($getSlug)) {
             return self::showBySlug($getSlug);
         } elseif (!empty($getKeyword)) {
@@ -313,7 +310,6 @@ class ServiceRepository implements ServiceInterface
             $request->all(),
             [
                 'title_service' =>  'required',
-                'url' =>  'required',
                 'ctg_service_id' =>  'required',
                 'icon'          =>  'image|
                                     mimes:jpeg,png,jpg,gif|
@@ -336,8 +332,7 @@ class ServiceRepository implements ServiceInterface
         try {
             $service = new Service();
             $service->title_service = $request->title_service;
-            $service->url = $request->url;
-            $service->slug = Str::slug($request->title_service, '-');
+            $service->url = $request->url ?? '';
 
             $ctg_service_id = $request->ctg_service_id;
             $ctg = Ctg_Service::where('id', $ctg_service_id)->first();
@@ -349,7 +344,6 @@ class ServiceRepository implements ServiceInterface
 
             if ($request->hasFile('icon')) {
                 $destination = 'public/icons';
-                $t_destination = 'public/thumbnails/t_icons';
                 $icon = $request->file('icon');
                 $iconName = $service->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
 
@@ -407,52 +401,36 @@ class ServiceRepository implements ServiceInterface
             if (!$service) {
                 return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($request->hasFile('photo')) {
+            if ($request->hasFile('icon')) {
                 //checkImage
-                if ($service->photo) {
-                    Storage::delete('public/images/' . $service->photo);
-                    Storage::delete('public/thumbnails/t_images/' . $service->photo);
+                if ($service->icon) {
+                    Storage::delete('public/icons/' . $service->icon);
+                    Storage::delete('public/thumbnails/t_icons/' . $service->icon);
                 }
-                $destination = 'public/images';
-                $t_destination = 'public/thumbnails/t_images';
-                $photo = $request->file('photo');
-                $service->slug = Str::slug($request->title_service, '-');
-                $imageName = $service->slug . "-" . time() . "." . $photo->getClientOriginalExtension();
+                $destination = 'public/icons';
+                $icon = $request->file('icon');
+                $label = Str::slug($request->title_service, '-');
+                $imageName = $label . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $service->photo = $imageName;
+                $service->icon = $imageName;
                 //storeOriginal
-                $photo->storeAs($destination, $imageName);
+                $icon->storeAs($destination, $imageName);
 
                 // compress to thumbnail 
-                Helper::resizeImage($photo, $imageName, $request);
+                Helper::resizeIcon($icon, $imageName, $request);
             } else {
                 if ($request->delete_image) {
-                    Storage::delete('public/images/' . $service->photo);
-                    Storage::delete('public/thumbnails/t_images/' . $service->photo);
-                    $service->photo = null;
+                    Storage::delete('public/icons/' . $service->icon);
+                    Storage::delete('public/thumbnails/t_icons/' . $service->icon);
+                    $service->icon = null;
                 }
-                $service->photo = $service->photo;
+                $service->icon = $service->icon;
             }
 
             // approved
             $service['title_service'] = $request->title_service ?? $service->title_service;
-            $service['facility'] = $request->facility ?? $service->facility;
-            $service['description'] = $request->description ?? $service->description;
-            $service['address'] = $request->address ?? $service->address;
-            $service['url_location'] = $request->url_location ?? $service->url_location;
-            $service['v_duration'] = $request->v_duration ?? $service->v_duration;
-            $service['v_distance'] = $request->v_distance ?? $service->v_distance;
-            $service['contact'] = $request->contact ?? $service->contact;
-            $service['email'] = $request->email ?? $service->email;
-            $service['facebook'] = $request->facebook ?? $service->facebook;
-            $service['instagram'] = $request->instagram ?? $service->instagram;
-            $service['twitter'] = $request->twitter ?? $service->twitter;
-            $service['youtube'] = $request->youtube ?? $service->youtube;
-            $service['tiktok'] = $request->tiktok ?? $service->tiktok;
-            $service['website'] = $request->website ?? $service->website;
+            $service['url'] = $request->url ?? $service->url;
 
-            $service['district_id'] = $request->district_id ?? $service->district_id;
-            $service['slug'] =  Str::slug($request->title_service, '-');
             $ctg_service_id = $request->ctg_service_id;
             $ctg = Ctg_Service::where('id', $ctg_service_id)->first();
             if ($ctg) {
@@ -483,9 +461,9 @@ class ServiceRepository implements ServiceInterface
             if (!$service) {
                 return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($service->photo) {
-                Storage::delete('public/images/' . $service->photo);
-                Storage::delete('public/thumbnails/t_images/' . $service->photo);
+            if ($service->icon) {
+                Storage::delete('public/icons/' . $service->icon);
+                Storage::delete('public/thumbnails/t_icons/' . $service->icon);
             }
             // approved
             $del = $service->delete();
@@ -497,185 +475,4 @@ class ServiceRepository implements ServiceInterface
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }
-
-
-    //======================================== GOOOOOOOOOOOOOOOGLE
-    // public function getAllPlaceGmaps($search, $page)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_All_" . $search . request()->get("page", 1);
-    //         $keyAuth = $this->generalRedisKeys . "auth_All_" . $search . request()->get("page", 1);
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE):List $search di Kabupaten Sumbawa Barat", $result);
-    //         }
-
-    //         $apiKey = env('GOOGLE_MAPS_API_KEY');
-    //         //Koordinat KSB
-    //         $location = '-8.4937,117.4206';
-    //         $radius = 50000;
-    //         $query =  $search . ' Kabupaten Sumbawa Barat, Nusa Tenggara Barat';
-    //         $url = empty($page) ? "https://maps.googleapis.com/maps/api/place/textsearch/json?query=$query&location=$location&radius=$radius&key=$apiKey&language=id" : "https://maps.googleapis.com/maps/api/place/textsearch/json?query=$query&location=$location&radius=$radius&pagetoken=$page&key=$apiKey&language=id";
-
-    //         // $url = "https://maps.googleapis.com/maps/api/place/textsearch/json?query=$query&location=$vanueLatitude,$vanueLongitude&key=$apiKey&language=id";
-    //         $response = Http::get($url);
-    //         if (!$response->successful()) {
-    //             return $this->error("Terjadi Kesalahan", "Google Maps API bermasalah!", $response->status());
-    //         }
-
-    //         $data = $response->json();
-    //         $bucket = [];
-    //         $destinations = [];
-    //         $nextPageToken = $data['next_page_token'] ?? null;
-    //         //tujuan
-    //         foreach ($data['results'] as $result) {
-    //             // $destinations[] = $result['name'];
-    //             $destinations[] = $result['geometry']['location']['lat'] . ',' . $result['geometry']['location']['lng'];
-    //         }
-
-    //         //vanue Alun-Alun Taliwang
-    //         $vanueLocation = "-8.7477361,116.8539868";
-    //         $distanceMatrixUrl = "https://maps.googleapis.com/maps/api/distancematrix/json?destinations=" . implode('|', $destinations) . "&origins=$vanueLocation" . "&key=$apiKey&language=id";
-    //         // dd($distanceMatrixUrl);
-    //         $distanceMatrixResponse = Http::get($distanceMatrixUrl);
-    //         $distanceMatrixData = $distanceMatrixResponse->json();
-    //         // dd($distanceMatrixData);
-    //         foreach ($data['results'] as $key => $result) {
-    //             $placeName = urlencode($result['name']);
-    //             $gLink = "https://www.google.com/maps/search/?api=1&query=$placeName";
-    //             $photoKey = isset($result['photos'][0]['photo_reference']) ? $this->generatePhotoUrl($result['photos'][0]['photo_reference']) : null;
-
-    //             //waktu sama jarak
-    //             $distance = isset($distanceMatrixData['rows'][0]['elements'][$key]['distance']['text']) ? $distanceMatrixData['rows'][0]['elements'][$key]['distance']['text'] : 'Jarak tidak tersedia';
-    //             $duration = isset($distanceMatrixData['rows'][0]['elements'][$key]['duration']['text']) ? $distanceMatrixData['rows'][0]['elements'][$key]['duration']['text'] : 'Durasi tidak tersedia';
-
-    //             $bucket[] = [
-    //                 // 'next_page_token' => $data['next_page_token'] ?? null,
-    //                 'place_id' => $result['place_id'],
-    //                 'name' => $result['name'],
-    //                 'address' => $result['formatted_address'] ?? null,
-    //                 'photo_key' => $photoKey,
-    //                 'types' => $result['types'],
-    //                 'gmaps_url' => $gLink,
-    //                 'rating' => $result['rating'] ?? null,
-    //                 'total_reviews' => $result['user_ratings_total'] ?? null,
-    //                 'distance_from_vanue' => $distance,
-    //                 'duration_from_vanue' => $duration
-
-    //             ];
-    //         }
-    //         $responseWithToken = [
-    //             'data' => $bucket,
-    //             'next_page_token' => $nextPageToken
-    //         ];
-
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         Redis::setex($key, 60, json_encode($responseWithToken));
-    //         return $this->success("List $search di Kabupaten Sumbawa Barat", $responseWithToken);
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-
-    // public function getDetailsPlaceGoogleMaps($place_id)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_All_" . $place_id . request()->get("page", 1);
-    //         $keyAuth = $this->generalRedisKeys . "auth_All_" . $place_id . request()->get("page", 1);
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE):Details tempat berdasarkan place_id = $place_id di Kabupaten Sumbawa Barat", $result);
-    //         }
-    //         $apiKey = env('GOOGLE_MAPS_API_KEY');
-    //         $url = "https://maps.googleapis.com/maps/api/place/details/json?placeid=$place_id&key=$apiKey&language=id";
-
-    //         $response = Http::get($url);
-    //         if (!$response->successful()) {
-    //             return $this->error("Terjadi Kesalahan", "Details, Google Maps API bermasalah!", $response->status());
-    //         }
-
-    //         $data = $response->json();
-    //         if (isset($data['result'])) {
-    //             $result = $data['result'];
-    //             $photoKeys = [];
-    //             if (isset($result['photos']) && is_array($result['photos'])) {
-    //                 $i = 1;
-    //                 foreach ($result['photos'] as $photo) {
-    //                     if (isset($photo['photo_reference'])) {
-    //                         $photo_reference = $photo['photo_reference'];
-    //                         $photoKey = $this->generatePhotoUrl($photo_reference);
-    //                         $photoKeys["key$i"] = $photoKey;
-    //                         $i++;
-    //                     }
-    //                 }
-    //             }
-
-    //             $destinations = $result['geometry']['location']['lat'] . ',' . $result['geometry']['location']['lng'];
-    //             $vanueLocation = "-8.7477361,116.8539868";
-    //             $distanceMatrixUrl = "https://maps.googleapis.com/maps/api/distancematrix/json?destinations=" . $destinations . "&origins=$vanueLocation" . "&key=$apiKey&language=id";
-
-    //             $distanceMatrixResponse = Http::get($distanceMatrixUrl);
-    //             $distanceMatrixData = $distanceMatrixResponse->json();
-    //             $distance = isset($distanceMatrixData['rows'][0]['elements'][0]['distance']['text']) ? $distanceMatrixData['rows'][0]['elements'][0]['distance']['text'] : 'Jarak tidak tersedia';
-    //             $duration = isset($distanceMatrixData['rows'][0]['elements'][0]['duration']['text']) ? $distanceMatrixData['rows'][0]['elements'][0]['duration']['text'] : 'Durasi tidak tersedia';
-
-    //             $bucket = [
-    //                 'place_id' => $result['place_id'],
-    //                 'name' => $result['name'],
-    //                 'formatted_address' => $result['formatted_address'] ?? null,
-    //                 'photo_keys' => $photoKeys ?? null,
-    //                 'url' => $result['url'] ?? null,
-    //                 'current_opening_hours' => isset($result['opening_hours']) && isset($result['opening_hours']['open_now']) ? $result['opening_hours']['open_now'] : null,
-    //                 'opening_hours' => $result['opening_hours'] ?? null,
-    //                 'types' => $result['types'],
-    //                 'reviews' => $result['reviews'] ?? null,
-    //                 'rating' => $result['rating'] ?? null,
-    //                 'user_ratings_total' => $result['user_ratings_total'] ?? null,
-    //                 'distance_from_vanue' => $distance,
-    //                 'duration_from_vanue' => $duration
-    //             ];
-
-
-    //             Redis::setex($key, 60, json_encode($bucket));
-    //             return $this->success("Details tempat berdasarkan place_id = $place_id di Kabupaten Sumbawa Barat", $bucket);
-    //         } else {
-    //             return $this->error("Terjadi Kesalahan", "Data tidak ditemukan dalam respons API Google Maps.", 500);
-    //         }
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-    // public function getImageGmapsServices($photo_reference)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_All_" . $photo_reference . request()->get("page", 1);
-    //         $keyAuth = $this->generalRedisKeys . "auth_All_" . $photo_reference . request()->get("page", 1);
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $imageBinaryData = Redis::get($key);
-    //             return response($imageBinaryData)->header('Content-Type', 'image/jpeg');
-    //         }
-    //         $apiKey = env('GOOGLE_MAPS_API_KEY');
-    //         $url = "https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=$photo_reference&key=$apiKey";
-
-    //         $response = Http::get($url);
-    //         if ($response->successful()) {
-    //             $imageBinaryData = $response->body();
-
-    //             Redis::setex($key, 60, $imageBinaryData);
-    //             return response($imageBinaryData)->header('Content-Type', 'image/jpeg');
-    //         } else {
-    //             return $this->error("Terjadi Kesalahan", "Photo, Google Maps API bermasalah!", $response->status());
-    //         }
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-    // public function generatePhotoUrl($photo_reference)
-    // {
-    //     $photoUrl = $photo_reference;
-    //     return $photoUrl;
-    // }
 }
