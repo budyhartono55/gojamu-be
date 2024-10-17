@@ -15,7 +15,7 @@ return new class extends Migration
     {
         Schema::create('ctg_gallery', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("title_category");
+            $table->string("title_ctg");
             $table->string("slug"); //auto generate
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate

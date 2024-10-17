@@ -49,10 +49,12 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
     {
         try {
 
-            $key = $this->generalRedisKeys . "All_" . request()->get('page', 1);
+            $key = $this->generalRedisKeys . "public_All_"  . request()->get('page', 1);
+            $keyAuth = $this->generalRedisKeys . "auth_All_" . request()->get('page', 1);
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
-                return $this->success("List Keseluruhan Kategori Gallery from (CACHE)", $result);
+                return $this->success("(CACHE): List Keseluruhan Kategori Gallery", $result);
             };
 
             $ctg_gallery = Ctg_Gallery::with(['createdBy', 'editedBy'])
@@ -69,8 +71,8 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
                     return $item;
                 }, $modifiedData);
 
-                Redis::set($key, json_encode($ctg_gallery));
-                Redis::expire($key, 60); // Cache for 60 seconds
+                $key = Auth::check() ? $keyAuth : $key;
+                Redis::setex($key, 60, json_encode($ctg_gallery));
 
                 return $this->success("List keseluruhan Kategori Gallery", $ctg_gallery);
             }
@@ -83,10 +85,12 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
     public function getAllCtg_GalleryUnpaginate()
     {
         try {
-            $key = $this->generalRedisKeys . "All_Unpaginate";
+            $key = $this->generalRedisKeys . "public_All_Unpaginate_";
+            $keyAuth = $this->generalRedisKeys . "auth_All_Unpaginate_";
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
-                return $this->success("List Keseluruhan Kategori Gallery from (CACHE)", $result);
+                return $this->success("(CACHE): List Keseluruhan Kategori Gallery-unpaginate", $result);
             };
 
             $ctg_gallery = Ctg_Gallery::with(['createdBy', 'editedBy'])
@@ -149,10 +153,10 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
         $validator = Validator::make(
             $request->all(),
             [
-                'title_category' => 'required',
+                'title_ctg' => 'required',
             ],
             [
-                'title_category.required' => 'Uppss, Judul kategori tidak boleh kosong!',
+                'title_ctg.required' => 'Uppss, Judul kategori tidak boleh kosong!',
             ]
         );
 
@@ -163,8 +167,8 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
 
         try {
             $ctg_gallery = new Ctg_Gallery();
-            $ctg_gallery->title_category = $request->title_category;
-            $ctg_gallery->slug = Str::slug($request->title_category, '-');
+            $ctg_gallery->title_ctg = $request->title_ctg;
+            $ctg_gallery->slug = Str::slug($request->title_ctg, '-');
 
             $user = Auth::user();
             $ctg_gallery->created_by = $user->id;
@@ -177,7 +181,7 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
                 return $this->success("Kategori Gallery Berhasil ditambahkan!", $ctg_gallery);
             }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
 
@@ -187,10 +191,10 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
         $validator = Validator::make(
             $request->all(),
             [
-                'title_category' => 'required',
+                'title_ctg' => 'required',
             ],
             [
-                'title_category.required' => 'Uppss, title_category tidak boleh kosong!',
+                'title_ctg.required' => 'Uppss, title_ctg tidak boleh kosong!',
             ]
         );
 
@@ -208,8 +212,8 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
                 return $this->error("Not Found", "Kategori Gallery dengan ID = ($id) tidak ditemukan!", 404);
             } else {
                 // approved
-                $category->title_category = $request->title_category;
-                $category['slug'] = Str::slug($request->title_category, '-');
+                $category->title_ctg = $request->title_ctg;
+                $category['slug'] = Str::slug($request->title_ctg, '-');
 
                 $oldCreatedBy = $category->created_by;
                 $category['created_by'] = $oldCreatedBy;

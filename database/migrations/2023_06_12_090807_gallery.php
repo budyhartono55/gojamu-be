@@ -17,8 +17,6 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string("title_gallery")->nullable();
             $table->text("description")->nullable();
-            $table->string("url")->nullable();
-            $table->string("file_type"); // auto generate
             $table->string('image')->nullable();
             $table->string('ctg_gallery_id')->nullable();
             $table->string('created_by'); // auto generate

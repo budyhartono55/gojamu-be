@@ -8,7 +8,6 @@ interface Ctg_GalleryInterface
 {
     // getAll
     public function getCtg_Gallery($request);
-    // public function getAllCtg_Gallery();
     // findOne
     public function findById($id);
     // insertData
