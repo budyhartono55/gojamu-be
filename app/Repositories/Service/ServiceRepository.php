@@ -273,12 +273,12 @@ class ServiceRepository implements ServiceInterface
     public function findById($id)
     {
         try {
-            $key = $this->generalRedisKeys . "public_" . $id;
-            $keyAuth = $this->generalRedisKeys . "auth_" . $id;
+            $key = $this->generalRedisKeys . "public_";
+            $keyAuth = $this->generalRedisKeys . "auth_";
             $key = Auth::check() ? $keyAuth : $key;
 
-            if (Redis::exists($key)) {
-                $result = json_decode(Redis::get($key));
+            if (Redis::exists($key . $id)) {
+                $result = json_decode(Redis::get($key . $id));
                 return $this->success("(CACHE): Detail Layanan dengan ID = ($id)", $result);
             }
 

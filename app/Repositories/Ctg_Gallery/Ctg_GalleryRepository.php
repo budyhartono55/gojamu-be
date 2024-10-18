@@ -120,7 +120,9 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
     public function findById($id)
     {
         try {
-            $key = $this->generalRedisKeys;
+            $key = $this->generalRedisKeys . "public_";
+            $keyAuth = $this->generalRedisKeys . "Auth_";
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $id)) {
                 $result = json_decode(Redis::get($key . $id));
                 return $this->success("(CACHE): Detail Kategori Gallery dengan ID = ($id)", $result);
@@ -134,9 +136,8 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
                 $ctg_gallery->created_by = optional($createdBy)->only(['id', 'name']);
                 $ctg_gallery->edited_by = optional($editedBy)->only(['id', 'name']);
 
-
-                Redis::set($key . $id, json_encode($ctg_gallery));
-                Redis::expire($key . $id, 60); // Cache for 1 minute
+                $key = Auth::check() ? $keyAuth . $id : $key . $id;
+                Redis::setex($key, 60, json_encode($ctg_gallery));
 
                 return $this->success("Kategori Gallery dengan ID $id", $ctg_gallery);
             } else {
@@ -181,7 +182,7 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
                 return $this->success("Kategori Gallery Berhasil ditambahkan!", $ctg_gallery);
             }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage(), 499);
+            return $this->error("Internal Server Error", $e->getMessage());
         }
     }
 
@@ -235,7 +236,6 @@ class Ctg_GalleryRepository implements Ctg_GalleryInterface
     {
         try {
             $Ctg_Gallery = Gallery::where('ctg_gallery_id', $id)->exists();
-            // $Ctg_GalleryJunk = Gallery::withTrashed()->where('ctg_gallery_id', $id)->exists();
             if ($Ctg_Gallery) {
                 return $this->error("Failed", "Kategori Gallery dengan ID = ($id) digunakan di Gallery!", 400);
             }

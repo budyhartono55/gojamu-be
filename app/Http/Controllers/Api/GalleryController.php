@@ -29,10 +29,10 @@ class GalleryController extends Controller
     }
 
     //findOne
-    // public function findById($id)
-    // {
-    //     return $this->galleryRepository->findById($id);
-    // }
+    public function findById($id)
+    {
+        return $this->galleryRepository->findById($id);
+    }
 
     // create
     public function add(Request $request)

@@ -34,19 +34,22 @@ class GalleryRepository implements GalleryInterface
     {
         $limit = Helper::limitDatas($request);
         $getId = $request->id;
-        $getType = $request->type;
-        $getCtg = $request->album;
+        // $getType = $request->type;
+        $getCtg = $request->ctg;
 
 
         // if (!empty($getType)) {
         //     return $getType == 'photo' || $getType == 'video'
         //         ? self::getAllMedia($getType, $limit, $getCtg)
         //         : $this->error("Not Found", "Type ($getType) tidak terdaftar", 404);
-        if (!empty($getType)) {
-            return in_array($getType, ['photo', 'video', 'streaming'])
-                ? self::getAllMedia($getType, $limit, $getCtg)
-                : $this->error("Not Found", "Type ($getType) tidak terdaftar", 404);
-        } elseif (!empty($getId)) {
+        // USED
+        // if (!empty($getType)) {
+        //     return in_array($getType, ['photo', 'video', 'streaming'])
+        //         ? self::getAllMedia($getType, $limit, $getCtg)
+        //         : $this->error("Not Found", "Type ($getType) tidak terdaftar", 404);
+        // } else
+
+        if (!empty($getId)) {
             return self::findById($getId);
         } else {
             return self::getAllGalleries($getCtg, $limit);
@@ -63,7 +66,7 @@ class GalleryRepository implements GalleryInterface
 
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
-                return $this->success("List Keseluruhan Gallery dari (CACHE)", $result);
+                return $this->success("(CACHE): List Keseluruhan Gallery", $result);
             }
 
             $galleryQuery = Gallery::with(['ctg_galleries', 'createdBy', 'editedBy'])
@@ -81,7 +84,7 @@ class GalleryRepository implements GalleryInterface
                 $modifiedData = array_map(function ($item) {
                     $item->created_by = optional($item->createdBy)->only(["id", "name"]);
                     $item->edited_by = optional($item->editedBy)->only(["id", "name"]);
-                    $item->ctg_gallery_id = optional($item->ctg_galleries)->only(['id', "title_category", "slug"]);
+                    $item->ctg_gallery_id = optional($item->ctg_galleries)->only(['id', "title_ctg", "slug"]);
 
                     unset($item->createdBy, $item->editedBy, $item->ctg_galleries);
                     return $item;
@@ -97,83 +100,16 @@ class GalleryRepository implements GalleryInterface
         }
     }
 
-    public function getAllMedia($mediaType, $limit, $slug)
-    {
-        try {
-            $page = request()->get("page", 1);
-            $key = $this->generalRedisKeys . "public_All_" . $page . "_" . $mediaType . ($slug ? '_slug#' . $slug : '') . '_limit#' . $limit;
-            $keyAuth = $this->generalRedisKeys . "auth_All_" . $page . "_" . $mediaType . ($slug ? '_slug#' . $slug : '') . '_limit#' . $limit;
-            $key = Auth::check() ? $keyAuth : $key;
-
-            // if (Redis::exists($key)) {
-            //     $result = json_decode(Redis::get($key));
-            //     $mediaTypeText = $mediaType === 'photo' ? 'Photo' : 'Video';
-            //     return $this->success("List $mediaTypeText di Gallery dari (CACHE)", $result);
-            // }
-            if (Redis::exists($key)) {
-                $result = json_decode(Redis::get($key));
-                $mediaTypeText = '';
-
-                if ($mediaType === 'photo') {
-                    $mediaTypeText = 'Photo';
-                } elseif ($mediaType === 'video') {
-                    $mediaTypeText = 'Video';
-                } elseif ($mediaType === 'streaming') {
-                    $mediaTypeText = 'Streaming';
-                }
-
-                return $this->success("(CACHE): List $mediaTypeText di Gallery", $result);
-            }
-
-            $query = Gallery::with(['createdBy', 'editedBy'])
-                ->latest('created_at');
-
-            if ($slug) {
-                $query->whereHas('ctg_galleries', function ($query) use ($slug) {
-                    $query->where('slug', $slug);
-                });
-            }
-
-            if ($mediaType === "photo") {
-                $query->where('url', '');
-            } elseif ($mediaType === "video") {
-                $query->where('url', '!=', '');
-            } elseif ($mediaType === "streaming") {
-                $query->where('title_gallery', 'LIKE', '%(STREAMING)%');
-            }
-
-            $gallery = $query->paginate($limit);
-
-            if ($gallery) {
-                $modifiedData = $gallery->items();
-                $modifiedData = array_map(function ($item) {
-                    $item->created_by = optional($item->createdBy)->only(["id", "name"]);
-                    $item->edited_by = optional($item->editedBy)->only(["id", "name"]);
-                    $item->ctg_gallery_id = optional($item->ctg_galleries)->only(['id', "title_category", "slug"]);
-
-                    unset($item->createdBy, $item->editedBy, $item->ctg_galleries);
-                    return $item;
-                }, $modifiedData);
-
-                $key = Auth::check() ? $keyAuth : $key;
-                Redis::setex($key, 60, json_encode($gallery));
-
-                $mediaTypeText = $mediaType === 'photo' ? 'Photo' : 'Video';
-                return $this->success("List $mediaTypeText di Gallery", $gallery);
-            }
-        } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
-        }
-    }
-
     // findOne
     public function findById($id)
     {
         try {
-            $key = $this->generalRedisKeys;
+            $key = $this->generalRedisKeys . "public_";
+            $keyAuth = $this->generalRedisKeys . "Auth_";
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $id)) {
                 $result = json_decode(Redis::get($key . $id));
-                return $this->success("Detail Gallery dengan ID = ($id) from (CACHE)", $result);
+                return $this->success("(CACHE): Detail Gallery dengan ID = ($id)", $result);
             }
 
             $gallery = Gallery::find($id);
@@ -183,8 +119,8 @@ class GalleryRepository implements GalleryInterface
                 $gallery->created_by = optional($createdBy)->only(['id', 'name']);
                 $gallery->edited_by = optional($editedBy)->only(['id', 'name']);
 
-                Redis::set($key . $id, json_encode($gallery));
-                Redis::expire($key . $id, 60); // Cache for 1 minute
+                $key = Auth::check() ? $keyAuth . $id : $key . $id;
+                Redis::setex($key, 60, json_encode($gallery));
 
                 return $this->success("Gallery dengan ID $id", $gallery);
             } else {
@@ -204,15 +140,15 @@ class GalleryRepository implements GalleryInterface
                 'title_gallery'   =>    'required',
                 'image'           =>    'required|
                                         image|
-                                        mimes:jpeg,png,jpg,gif,svg|
+                                        mimes:jpeg,png,jpg|
                                         max:3072',
             ],
             [
                 'title_gallery.required' => 'Mohon isikan title_gallery',
                 'image.required' => 'Image tidak boleh kosong!',
                 'image.image' => 'Pastikan file Image bertipe gambar',
-                'image.mimes' => 'Format Image yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'image.max' => 'File Image terlalu besar, usahakan dibawah 2MB',
+                'image.mimes' => 'Format Image yang diterima hanya jpeg, png, dan jpg',
+                'image.max' => 'File Image terlalu besar, usahakan dibawah 3MB',
             ]
         );
         //check if validation fails
@@ -224,7 +160,7 @@ class GalleryRepository implements GalleryInterface
             $gallery = new Gallery();
             $gallery->title_gallery = $request->title_gallery;
             $gallery->description = $request->description;
-            $gallery->url = $request->url;
+
             $user = Auth::user();
             $gallery->created_by = $user->id;
             $gallery->edited_by = $user->id;
@@ -234,7 +170,7 @@ class GalleryRepository implements GalleryInterface
                 if ($ctg) {
                     $gallery->ctg_gallery_id = $ctg_id;
                 } else {
-                    return $this->error("Tidak ditemukan!", " Acara dengan ID = ($ctg_id) tidak ditemukan!", 404);
+                    return $this->error("Tidak ditemukan!", " Kategori Gallery dengan ID = ($ctg_id) tidak ditemukan!", 404);
                 }
             } else {
                 $gallery->ctg_gallery_id = null;
@@ -242,11 +178,9 @@ class GalleryRepository implements GalleryInterface
 
             if ($request->hasFile('image')) {
                 $destination = 'public/images';
-                $t_destination = 'public/thumbnails/t_images';
                 $image = $request->file('image');
-                $imageName = time() . "." . $image->getClientOriginalExtension();
+                $imageName = 'glr_' . time() . "." . $image->getClientOriginalExtension();
 
-                $gallery->file_type = $image->getClientOriginalExtension();
                 $gallery->image = $imageName;
                 //storeOriginal
                 $image->storeAs($destination, $imageName);

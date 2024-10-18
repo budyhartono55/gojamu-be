@@ -121,7 +121,9 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
     public function findById($id)
     {
         try {
-            $key = $this->generalRedisKeys;
+            $key = $this->generalRedisKeys . "public_";
+            $keyAuth = $this->generalRedisKeys . "Auth_";
+            $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $id)) {
                 $result = json_decode(Redis::get($key . $id));
                 return $this->success("(CACHE): Detail Kategori Service dengan ID = ($id)", $result);
@@ -135,9 +137,8 @@ class Ctg_ServiceRepository implements Ctg_ServiceInterface
                 $ctg_service->created_by = optional($createdBy)->only(['name']);
                 $ctg_service->edited_by = optional($editedBy)->only(['name']);
 
-
-                Redis::set($key . $id, json_encode($ctg_service));
-                Redis::expire($key . $id, 60); // Cache for 1 minute
+                $key = Auth::check() ? $keyAuth . $id : $key . $id;
+                Redis::setex($key, 60, json_encode($ctg_service));
 
                 return $this->success("Kategori Service dengan ID $id", $ctg_service);
             } else {

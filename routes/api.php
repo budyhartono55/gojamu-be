@@ -135,6 +135,8 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
 
     // G A L L E R Y
     Route::get("/gallery", [GalleryController::class, "index"])->name("gallery");
+    Route::get("/gallery/{id}", [GalleryController::class, "findById"])->name("findOne");
+
     // POST
     Route::post("/gallery", [GalleryController::class, "add"])->name("GalleryCategory");
     Route::patch("/gallery/{id}", [GalleryController::class, "edit"])->name("editGallery");
@@ -212,7 +214,7 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // =======================================================================================================
     // G A L L E R Y
     Route::get("/public/gallery", [GalleryController::class, "index"])->name("gallery");
-    // Route::get("/public/gallery/{id}", [GalleryController::class, "findById"])->name("findOne");
+    Route::get("/public/gallery/{id}", [GalleryController::class, "findById"])->name("findOne");
 
     // =======================================================================================================
     // C T G _ GALLERY

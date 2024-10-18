@@ -9,7 +9,7 @@ interface GalleryInterface
     // getAll
     public function getGalleries($request);
     // findOne
-    // public function findById($id);
+    public function findById($id);
     // insertData
     public function createGallery($request);
     // update
