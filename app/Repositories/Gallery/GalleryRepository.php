@@ -209,14 +209,14 @@ class GalleryRepository implements GalleryInterface
             [
                 'title_gallery'   =>    'required',
                 'image'           =>    'image|
-                                        mimes:jpeg,png,jpg,gif,svg|
+                                        mimes:jpeg,png,jpg|
                                         max:3072',
             ],
             [
                 'title_gallery.required' => 'Mohon isikan title_gallery',
                 'image.image' => 'Pastikan file Image bertipe gambar',
-                'image.mimes' => 'Format Image yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'image.max' => 'File Image terlalu besar, usahakan dibawah 2MB',
+                'image.mimes' => 'Format Image yang diterima hanya jpeg, png, dan jpg',
+                'image.max' => 'File Image terlalu besar, usahakan dibawah 3MB',
             ]
         );
         //check if validation fails
@@ -237,12 +237,10 @@ class GalleryRepository implements GalleryInterface
                         Storage::delete('public/thumbnails/t_images/' . $gallery->image);
                     }
                     $destination = 'public/images';
-                    $t_destination = 'public/thumbnails/t_images';
                     $image = $request->file('image');
-                    $imageName = time() . "." . $image->getClientOriginalExtension();
+                    $imageName = "glr_" . time() . "." . $image->getClientOriginalExtension();
 
                     $gallery->image = $imageName;
-                    $gallery->file_type = $image->getClientOriginalExtension();
 
                     //storeOriginal
                     $image->storeAs($destination, $imageName);
@@ -256,7 +254,6 @@ class GalleryRepository implements GalleryInterface
             // approved
             $gallery['title_gallery'] = $request->title_gallery;
             $gallery['description'] = $request->description;
-            $gallery['url'] = $request->url;
 
             $oldCreatedBy = $gallery->created_by;
             $gallery['created_by'] = $oldCreatedBy;
