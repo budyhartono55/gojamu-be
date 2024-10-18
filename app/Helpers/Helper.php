@@ -150,12 +150,12 @@ class Helper
         return Http::accept('application/json')->get($url);
     }
 
-    public static function limitDatas($request)
+    public static function limitDatas($request, $maksimal = 20)
     {
         if (($request->limit != null) or ($request->limit != "")) {
-            $limit = $request->limit > 20 ? 20 : $request->limit;
+            $limit = $request->limit > $maksimal ? $maksimal : $request->limit;
         } else {
-            $limit = 20;
+            $limit = $maksimal;
         }
         return $limit;
     }
