@@ -53,6 +53,18 @@ class GojamuServiceProvider extends ServiceProvider
             'App\Repositories\Service\ServiceRepository'
         );
 
+        // CTG_MEDIA ================
+        $this->app->bind(
+            'App\Repositories\CtgMedia\CtgMediaInterface',
+            'App\Repositories\CtgMedia\CtgMediaRepository'
+        );
+
+        // MEDIA ================
+        $this->app->bind(
+            'App\Repositories\Media\MediaInterface',
+            'App\Repositories\Media\MediaRepository'
+        );
+
         // CTG_GALLERY ================
         $this->app->bind(
             'App\Repositories\Ctg_Gallery\Ctg_GalleryInterface',
