@@ -52,8 +52,8 @@ class ServiceRepository implements ServiceInterface
             } else {
                 return self::getAllServiceByCategorySlug($getCategory, $limit);
             }
-        } elseif (!empty($getSlug)) {
-            return self::showBySlug($getSlug);
+            // } elseif (!empty($getSlug)) {
+            //     return self::showBySlug($getSlug);
         } elseif (!empty($getKeyword)) {
             return self::getAllServiceByKeyword($getKeyword, $limit);
         } else {
