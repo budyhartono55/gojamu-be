@@ -15,13 +15,14 @@ return new class extends Migration
     {
         Schema::create('like', function (Blueprint $table) {
             $table->uuid('id')->primary();
+            $table->date("posted_at")->nullable();
             $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('user');
+            $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('media_id')->references('id')->on('media');
         });
     }

@@ -13,7 +13,20 @@ return new class extends Migration
      */
     public function up()
     {
-        //
+        Schema::create('report', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->date("posted_at")->nullable();
+            $table->string("media_id")->nullable();
+            $table->string("comment_id")->nullable();
+            $table->string("user_id")->nullable();
+            $table->string("created_by"); //auto generate
+            $table->string("edited_by"); //auto generate
+            $table->timestamps();
+
+            $table->foreign('comment_id')->references('id')->on('comment');
+            $table->foreign('user_id')->references('id')->on('users');
+            $table->foreign('media_id')->references('id')->on('media');
+        });
     }
 
     /**
@@ -23,6 +36,6 @@ return new class extends Migration
      */
     public function down()
     {
-        //
+        Schema::dropIfExists('report');
     }
 };

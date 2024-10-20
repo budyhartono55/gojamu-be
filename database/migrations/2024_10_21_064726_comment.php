@@ -18,14 +18,15 @@ return new class extends Migration
             $table->text("comment")->nullable();
             $table->date("posted_at")->nullable();
             $table->string("parent_id")->nullable();
+            $table->string("report_stat")->nullable();
             $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();
 
-            $table->foreign('parent_id')->references('id')->on('comment');
-            $table->foreign('user_id')->references('id')->on('user');
+            // $table->foreign('parent_id')->references('id')->on('comment');
+            $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('media_id')->references('id')->on('media');
         });
     }

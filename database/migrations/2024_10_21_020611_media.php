@@ -18,9 +18,10 @@ return new class extends Migration
             $table->string("title_media")->nullable();
             $table->text("ytb_url")->nullable();
             $table->date("posted_at")->nullable();
-            $table->date("like_count")->nullable();
-            $table->date("comment_count")->nullable();
-            $table->date("rate_count")->nullable();
+            $table->string("like_count")->nullable();
+            $table->string("comment_count")->nullable();
+            $table->string("rate_count")->nullable();
+            $table->string("report_stat")->nullable();
             $table->string("user_id")->nullable();
             $table->string("topic_id")->nullable();
             $table->string("ctg_media_id")->nullable();
@@ -28,9 +29,9 @@ return new class extends Migration
             $table->string("edited_by"); //auto generate
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('user');
             $table->foreign('topic_id')->references('id')->on('topic');
             $table->foreign('ctg_media_id')->references('id')->on('ctg_media');
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 
