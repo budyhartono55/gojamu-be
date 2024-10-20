@@ -25,19 +25,23 @@ class Books extends Model
 
     // relasi one to many (comment)
 
-    public function user()
+    public function users()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function favorite()
+    public function favorites()
     {
-        return $this->belongsTo(Favorite::class, 'event_id');
+        return $this->hasMany(Favorite::class, 'book_id');
     }
 
     public function categories()
     {
-        return $this->belongsTo(CategoryBooks::class, 'category_id');
+        return $this->belongsTo(CategoryBooks::class, 'category_book_id');
+    }
+    public function topics()
+    {
+        return $this->belongsTo(Topic::class, 'topic_id', 'id');
     }
 
     //================================================

@@ -8,6 +8,8 @@ use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\Ctg_ServiceController;
 use App\Http\Controllers\Api\ServiceController;
+use App\Http\Controllers\Api\CtgMediaController;
+use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
@@ -111,7 +113,6 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // Service
     // //GET
     Route::get("/service", [ServiceController::class, "index"])->name("service");
-    Route::get("/service/dashboard", [Ctg_ServiceController::class, "dashboard"])->name("Ctg-dashboard");
     Route::get("/service/{id}", [ServiceController::class, "findById"])->name("findOne");
     // POST
     Route::post("/service", [ServiceController::class, "insert"])->name("createService");
@@ -119,6 +120,29 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/service/{id}", [ServiceController::class, "edit"])->name("editService");
     // DELETE
     Route::delete("/service/{id}", [ServiceController::class, "drop"])->name("deleteService");
+
+    // =======================================================================================================
+    // CTG_Media
+    // //GET
+    Route::get("/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
+    Route::get("/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/ctg-media", [CtgMediaController::class, "insert"])->name("createCtgMedia");
+    // PATCH
+    Route::patch("/ctg-media/{id}", [CtgMediaController::class, "edit"])->name("editCtgMedia");
+    // DELETE
+    Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
+    // =======================================================================================================
+    // Service
+    // //GET
+    Route::get("/media", [MediaController::class, "index"])->name("media");
+    Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/media", [MediaController::class, "insert"])->name("createMedia");
+    // PATCH
+    Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
+    // DELETE
+    Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
 
     // =======================================================================================================
     // CTG_GALLERY
@@ -192,10 +216,20 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // CTG_Service
     Route::get("/public/ctg-service", [Ctg_ServiceController::class, "index"])->name("Ctg-service");
     Route::get("/public/ctg-service/{id}", [Ctg_ServiceController::class, "findById"])->name("findOne");
+    // ===================================================================================================
+    // CTG_Service
+    Route::get("/public/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
+    Route::get("/public/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
+    // ===================================================================================================
+    // Media
+    Route::get("/public/media", [MediaController::class, "index"])->name("media");
+    Route::get("/public/media/{id}", [MediaController::class, "findById"])->name("findOne");
     // =======================================================================================================
     // Service
     Route::get("/public/service", [ServiceController::class, "index"])->name("service");
     Route::get("/public/service/{id}", [ServiceController::class, "findById"])->name("findOne");
+    // =======================================================================================================
+
 
     // N E W S 
     // GET

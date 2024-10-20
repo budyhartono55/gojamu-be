@@ -1,20 +1,18 @@
 <?php
 
-namespace App\Repositories\Service;
-
-use App\Http\Requests\ServiceRequest;
+namespace App\Repositories\Media;
 
 use Illuminate\Http\Request;
 
-interface ServiceInterface
+interface MediaInterface
 {
     // getAll
-    public function getServices($request);
+    public function getMedias($request);
     public function findById($id);
     // insertData
-    public function createService($request);
+    public function createMedia($request);
     // update
-    public function updateService($request, $id);
+    public function updateMedia($request, $id);
     // delete
-    public function deleteService($id);
+    public function deleteMedia($id);
 }

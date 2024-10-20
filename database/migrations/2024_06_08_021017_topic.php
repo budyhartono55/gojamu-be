@@ -20,8 +20,6 @@ return new class extends Migration
             $table->string('created_by')->nullable();
             $table->string('edited_by')->nullable();
             $table->timestamps();
-            $table->foreign('created_by')->references('id')->on('users');
-            $table->foreign('edited_by')->references('id')->on('users');
         });
     }
 

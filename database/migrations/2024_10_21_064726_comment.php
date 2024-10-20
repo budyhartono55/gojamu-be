@@ -13,24 +13,20 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('media', function (Blueprint $table) {
+        Schema::create('comment', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("title_media")->nullable();
-            $table->text("ytb_url")->nullable();
+            $table->text("comment")->nullable();
             $table->date("posted_at")->nullable();
-            $table->date("like_count")->nullable();
-            $table->date("comment_count")->nullable();
-            $table->date("rate_count")->nullable();
+            $table->string("parent_id")->nullable();
+            $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
-            $table->string("topic_id")->nullable();
-            $table->string("ctg_media_id")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();
 
+            $table->foreign('parent_id')->references('id')->on('comment');
             $table->foreign('user_id')->references('id')->on('user');
-            $table->foreign('topic_id')->references('id')->on('topic');
-            $table->foreign('ctg_media_id')->references('id')->on('ctg_media');
+            $table->foreign('media_id')->references('id')->on('media');
         });
     }
 
@@ -41,6 +37,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('media');
+        Schema::dropIfExists('comment');
     }
 };

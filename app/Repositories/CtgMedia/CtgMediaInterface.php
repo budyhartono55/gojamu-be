@@ -1,20 +1,20 @@
 <?php
 
-namespace App\Repositories\Ctg_Service;
+namespace App\Repositories\CtgMedia;
 
 use Illuminate\Http\Request;
 
-interface Ctg_ServiceInterface
+interface CtgMediaInterface
 {
     // getAll
-    public function getCtg_Service($request);
-    // public function getAllCtgService();
+    public function getCtgMedia($request);
+    // public function getAllCtMedia();
     // findOne
     public function findById($id);
     // insertData
-    public function createCtg_Service($request);
+    public function createCtgMedia($request);
     // update
-    public function updateCtg_Service($request, $id);
+    public function updateCtgMedia($request, $id);
     // delete
-    public function deleteCtg_Service($id);
+    public function deleteCtgMedia($id);
 }

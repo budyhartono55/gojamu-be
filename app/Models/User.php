@@ -56,4 +56,12 @@ class User extends Authenticatable
     {
         return $this->hasMany(News::class);
     }
+    public function medias()
+    {
+        return $this->hasMany(Media::class, 'user_id', 'id');
+    }
+    public function favorites()
+    {
+        return $this->hasMany(Favorite::class, 'user_id', 'id');
+    }
 }

@@ -1,16 +1,16 @@
 <?php
 
-namespace App\Repositories\Service;
+namespace App\Repositories\Media;
 
-use App\Repositories\Service\ServiceInterface as ServiceInterface;
-use App\Models\Service;
+use App\Repositories\Media\MediaInterface as MediaInterface;
+use App\Models\Media;
 use App\Models\User;
-use App\Http\Resources\ServiceResource;
+use App\Http\Resources\MediaResource;
 use Exception;
 use Illuminate\Http\Request;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\DB;
-use App\Http\Requests\ServiceRequest;
+use App\Http\Requests\MediaRequest;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
@@ -18,28 +18,28 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
 use App\Helpers\Helper;
-use App\Models\Ctg_Service;
+use App\Models\CtgMedia;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
 use Intervention\Image\Facades\Image;
 
-class ServiceRepository implements ServiceInterface
+class MediaRepository implements MediaInterface
 {
 
-    protected $service;
+    protected $media;
     protected $generalRedisKeys;
 
     // Response API HANDLER
     use API_response;
 
-    public function __construct(Service $service)
+    public function __construct(Media $media)
     {
-        $this->service = $service;
-        $this->generalRedisKeys = "service_";
+        $this->media = $media;
+        $this->generalRedisKeys = "media_";
     }
 
     // getAll
-    public function getServices($request)
+    public function getMedias($request)
     {
         $limit = Helper::limitDatas($request);
         $getSlug = $request->slug;
@@ -48,20 +48,20 @@ class ServiceRepository implements ServiceInterface
 
         if (!empty($getCategory)) {
             if (!empty($getKeyword)) {
-                return self::getAllServiceByKeywordInCtg($getCategory, $getKeyword, $limit);
+                return self::getAllMediaByKeywordInCtg($getCategory, $getKeyword, $limit);
             } else {
-                return self::getAllServiceByCategorySlug($getCategory, $limit);
+                return self::getAllMediaByCategorySlug($getCategory, $limit);
             }
             // } elseif (!empty($getSlug)) {
             //     return self::showBySlug($getSlug);
         } elseif (!empty($getKeyword)) {
-            return self::getAllServiceByKeyword($getKeyword, $limit);
+            return self::getAllMediaByKeyword($getKeyword, $limit);
         } else {
-            return self::getAllServices();
+            return self::getAllMedias();
         }
     }
 
-    public function getAllServices()
+    public function getAllMedias()
     {
         try {
 
@@ -70,35 +70,35 @@ class ServiceRepository implements ServiceInterface
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
-                return $this->success("(CACHE): List Keseluruhan Layanan", $result);
+                return $this->success("(CACHE): List Keseluruhan Konten/Media", $result);
             }
 
-            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
                 ->latest('created_at')
                 ->paginate(12);
 
-            if ($service) {
-                $modifiedData = $service->items();
+            if ($media) {
+                $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
-                    $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
                     return $item;
                 }, $modifiedData);
 
                 $key = Auth::check() ? $keyAuth : $key;
-                Redis::setex($key, 60, json_encode($service));
-                return $this->success("List keseluruhan Layanan", $service);
+                Redis::setex($key, 60, json_encode($media));
+                return $this->success("List keseluruhan Konten/Media", $media);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }
 
-    public function getAllServiceByKeywordInCtg($slug, $keyword, $limit)
+    public function getAllMediaByKeywordInCtg($slug, $keyword, $limit)
     {
         try {
             $key = $this->generalRedisKeys . "public_" . '_limit#' . $limit;
@@ -106,48 +106,48 @@ class ServiceRepository implements ServiceInterface
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $slug . "_" .  $keyword)) {
                 $result = json_decode(Redis::get($key . $slug . "_" .  $keyword));
-                return $this->success("(CACHE): List Layanan dengan keyword = ($keyword) dalam Kategori ($slug).", $result);
+                return $this->success("(CACHE): List Konten/Media dengan keyword = ($keyword) dalam Kategori ($slug).", $result);
             }
 
-            $category = Ctg_Service::where('slug', $slug)->first();
+            $category = CtgMedia::where('slug', $slug)->first();
             if (!$category) {
                 return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
             }
 
-            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
-                ->where('ctg_service_id', $category->id)
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+                ->where('ctg_media_id', $category->id)
                 ->where(function ($query) use ($keyword) {
-                    $query->where('title_service', 'LIKE', '%' . $keyword . '%');
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
                     // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->latest('created_at')
                 ->paginate($limit);
 
-            // if ($service->total() > 0) {
-            if ($service) {
-                $modifiedData = $service->items();
+            // if ($media->total() > 0) {
+            if ($media) {
+                $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
-                    $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
                     return $item;
                 }, $modifiedData);
 
                 $key = Auth::check() ? $keyAuth .  $slug . "_" .  $keyword : $key .  $slug . "_" .  $keyword;
-                Redis::setex($key, 60, json_encode($service));
+                Redis::setex($key, 60, json_encode($media));
 
-                return $this->success("List Keseluruhan Layanan berdasarkan keyword = ($keyword) dalam Kategori ($slug)", $service);
+                return $this->success("List Keseluruhan Konten/Media berdasarkan keyword = ($keyword) dalam Kategori ($slug)", $media);
             }
-            return $this->error("Not Found", "Layanan dengan keyword = ($keyword) dalam Kategori ($slug)tidak ditemukan!", 404);
+            return $this->error("Not Found", "Konten/Media dengan keyword = ($keyword) dalam Kategori ($slug)tidak ditemukan!", 404);
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
 
-    public function getAllServiceByCategorySlug($slug, $limit)
+    public function getAllMediaByCategorySlug($slug, $limit)
     {
         try {
             $isAuthenticated = Auth::check();
@@ -157,40 +157,40 @@ class ServiceRepository implements ServiceInterface
 
             if (Redis::exists($key . $slug)) {
                 $result = json_decode(Redis::get($key . $slug));
-                return $this->success("(CACHE): List Keseluruhan Layanan berdasarkan Kategori Layanan dengan slug = ($slug).", $result);
+                return $this->success("(CACHE): List Keseluruhan Konten/Media berdasarkan Kategori Konten/Media dengan slug = ($slug).", $result);
             }
-            $category = Ctg_Service::where('slug', $slug)->first();
+            $category = CtgMedia::where('slug', $slug)->first();
             if ($category) {
-                $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
-                    ->where('ctg_service_id', $category->id)
+                $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+                    ->where('ctg_media_id', $category->id)
                     ->latest('created_at')
                     ->paginate($limit);
 
-                // if ($service->total() > 0) {
-                $modifiedData = $service->items();
+                // if ($media->total() > 0) {
+                $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
-                    $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
                     return $item;
                 }, $modifiedData);
 
                 $key = Auth::check() ? $keyAuth . $slug : $key . $slug;
-                Redis::setex($key, 60, json_encode($service));
+                Redis::setex($key, 60, json_encode($media));
 
-                return $this->success("List Keseluruhan Layanan berdasarkan Kategori Layanan dengan slug = ($slug)", $service);
+                return $this->success("List Keseluruhan Konten/Media berdasarkan Kategori Konten/Media dengan slug = ($slug)", $media);
             } else {
-                return $this->error("Not Found", "Layanan berdasarkan Kategori Layanan dengan slug = ($slug) tidak ditemukan!", 404);
+                return $this->error("Not Found", "Konten/Media berdasarkan Kategori Konten/Media dengan slug = ($slug) tidak ditemukan!", 404);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }
 
-    public function getAllServiceByKeyword($keyword, $limit)
+    public function getAllMediaByKeyword($keyword, $limit)
     {
         try {
             $key = $this->generalRedisKeys . "public_" . '_limit#' . $limit;
@@ -198,35 +198,35 @@ class ServiceRepository implements ServiceInterface
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key . $keyword)) {
                 $result = json_decode(Redis::get($key . $keyword));
-                return $this->success("(CACHE): List Layanan dengan keyword = ($keyword).", $result);
+                return $this->success("(CACHE): List Konten/Media dengan keyword = ($keyword).", $result);
             }
 
-            $service = Service::with(['createdBy', 'editedBy', 'ctgServices'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
                 ->where(function ($query) use ($keyword) {
-                    $query->where('title_service', 'LIKE', '%' . $keyword . '%');
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
                     // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->latest('created_at')
                 ->paginate($limit);
 
-            if ($service) {
-                $modifiedData = $service->items();
+            if ($media) {
+                $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
-                    $item->ctg_service_id = optional($item->ctgServices)->only(['id', 'title_ctg', 'slug']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
-                    unset($item->createdBy, $item->editedBy, $item->ctgServices);
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
                     return $item;
                 }, $modifiedData);
 
                 $key = Auth::check() ? $keyAuth . $keyword : $key . $keyword;
-                Redis::setex($key, 60, json_encode($service));
+                Redis::setex($key, 60, json_encode($media));
 
-                return $this->success("List Keseluruhan Layanan berdasarkan keyword = ($keyword)", $service);
+                return $this->success("List Keseluruhan Konten/Media berdasarkan keyword = ($keyword)", $media);
             } else {
-                return $this->error("Not Found", "Layanan dengan keyword = ($keyword) tidak ditemukan!", 404);
+                return $this->error("Not Found", "Konten/Media dengan keyword = ($keyword) tidak ditemukan!", 404);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
@@ -241,28 +241,28 @@ class ServiceRepository implements ServiceInterface
     //         $key = Auth::check() ? $keyAuth : $key;
     //         if (Redis::exists($key)) {
     //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE): Detail Layanan dengan slug = ($slug)", $result);
+    //             return $this->success("(CACHE): Detail Konten/Media dengan slug = ($slug)", $result);
     //         }
 
     //         $slug = Str::slug($slug);
-    //         $service = Service::where('slug', $slug)
+    //         $media = Media::where('slug', $slug)
     //             ->latest('created_at')
     //             ->first();
 
-    //         if ($service) {
-    //             $createdBy = User::select('name')->find($service->created_by);
-    //             $editedBy = User::select('name')->find($service->edited_by);
-    //             $ctgServices = Ctg_Service::select(['id', 'title_ctg', 'slug'])->find($service->ctg_service_id);
+    //         if ($media) {
+    //             $createdBy = User::select('name')->find($media->created_by);
+    //             $editedBy = User::select('name')->find($media->edited_by);
+    //             $ctgMedias = CtgMedia::select(['id', 'title_ctg', 'slug'])->find($media->ctg_media_id);
 
-    //             $service->ctg_service_id = optional($ctgServices)->only(['id', 'title_ctg', 'slug']);
-    //             $service->created_by = optional($createdBy)->only(['name']);
-    //             $service->edited_by = optional($editedBy)->only(['name']);
+    //             $media->ctg_media_id = optional($ctgMedias)->only(['id', 'title_ctg', 'slug']);
+    //             $media->created_by = optional($createdBy)->only(['name']);
+    //             $media->edited_by = optional($editedBy)->only(['name']);
 
     //             $key = Auth::check() ? $key : $key;
-    //             Redis::setex($key, 60, json_encode($service));
-    //             return $this->success("Detail Layanan dengan slug = ($slug)", $service);
+    //             Redis::setex($key, 60, json_encode($media));
+    //             return $this->success("Detail Konten/Media dengan slug = ($slug)", $media);
     //         } else {
-    //             return $this->error("Not Found", "Layanan dengan slug = ($slug) tidak ditemukan!", 404);
+    //             return $this->error("Not Found", "Konten/Media dengan slug = ($slug) tidak ditemukan!", 404);
     //         }
     //     } catch (\Exception $e) {
     //         return $this->error("Internal Server Error", $e->getMessage(), 499);
@@ -279,24 +279,24 @@ class ServiceRepository implements ServiceInterface
 
             if (Redis::exists($key . $id)) {
                 $result = json_decode(Redis::get($key . $id));
-                return $this->success("(CACHE): Detail Layanan dengan ID = ($id)", $result);
+                return $this->success("(CACHE): Detail Konten/Media dengan ID = ($id)", $result);
             }
 
-            $service = Service::find($id);
-            if ($service) {
-                $createdBy = User::select('name')->find($service->created_by);
-                $editedBy = User::select('name')->find($service->edited_by);
-                $ctgService = Ctg_Service::select('id', 'title_ctg', 'slug')->find($service->ctg_service_id);
+            $media = Media::find($id);
+            if ($media) {
+                $createdBy = User::select('name')->find($media->created_by);
+                $editedBy = User::select('name')->find($media->edited_by);
+                $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
 
-                $service->created_by = optional($createdBy)->only(['name']);
-                $service->edited_by = optional($editedBy)->only(['name']);
-                $service->ctg_service_id = optional($ctgService)->only(['id', 'title_ctg', 'slug']);
+                $media->created_by = optional($createdBy)->only(['name']);
+                $media->edited_by = optional($editedBy)->only(['name']);
+                $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
-                Redis::setex($key, 60, json_encode($service));
-                return $this->success("Detail Layanan dengan ID = ($id)", $service);
+                Redis::setex($key, 60, json_encode($media));
+                return $this->success("Detail Konten/Media dengan ID = ($id)", $media);
             } else {
-                return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
+                return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 499);
@@ -304,21 +304,21 @@ class ServiceRepository implements ServiceInterface
     }
 
     // create
-    public function createService($request)
+    public function createMedia($request)
     {
         $validator = Validator::make(
             $request->all(),
             [
-                'title_service' =>  'required',
-                'ctg_service_id' =>  'required',
+                'title_media' =>  'required',
+                'ctg_media_id' =>  'required',
                 'icon'          =>  'image|
                                     mimes:jpeg,png,jpg,gif|
                                     max:3072',
             ],
             [
-                'title_service.required' => 'Mohon masukkan nama layanan!',
+                'title_media.required' => 'Mohon masukkan nama layanan!',
                 'url.required' => 'URL tidak boleh Kosong!',
-                'ctg_service_id.required' => 'Masukkan ketegori layanan!',
+                'ctg_media_id.required' => 'Masukkan ketegori layanan!',
                 'icon.image' => 'Pastikan file foto bertipe gambar',
                 'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg dan gif',
                 'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
@@ -330,24 +330,24 @@ class ServiceRepository implements ServiceInterface
         }
 
         try {
-            $service = new Service();
-            $service->title_service = $request->title_service;
-            $service->url = $request->url ?? '';
+            $media = new Media();
+            $media->title_media = $request->title_media;
+            $media->url = $request->url ?? '';
 
-            $ctg_service_id = $request->ctg_service_id;
-            $ctg = Ctg_Service::where('id', $ctg_service_id)->first();
+            $ctg_media_id = $request->ctg_media_id;
+            $ctg = CtgMedia::where('id', $ctg_media_id)->first();
             if ($ctg) {
-                $service->ctg_service_id = $ctg_service_id;
+                $media->ctg_media_id = $ctg_media_id;
             } else {
-                return $this->error("Tidak ditemukan!", "Kategori Service dengan ID = ($ctg_service_id) tidak ditemukan!", 404);
+                return $this->error("Tidak ditemukan!", "Kategori Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
             if ($request->hasFile('icon')) {
                 $destination = 'public/icons';
                 $icon = $request->file('icon');
-                $iconName = $service->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
+                $iconName = $media->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $service->icon = $iconName;
+                $media->icon = $iconName;
                 //storeOriginal
                 $icon->storeAs($destination, $iconName);
 
@@ -356,13 +356,13 @@ class ServiceRepository implements ServiceInterface
             }
 
             $user = Auth::user();
-            $service->created_by = $user->id;
-            $service->edited_by = $user->id;
+            $media->created_by = $user->id;
+            $media->edited_by = $user->id;
 
-            $create = $service->save();
+            $create = $media->save();
             if ($create) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
-                return $this->success("Layanan Berhasil ditambahkan!", $service);
+                return $this->success("Konten/Media Berhasil ditambahkan!", $media);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 499);
@@ -370,19 +370,19 @@ class ServiceRepository implements ServiceInterface
     }
 
     // update
-    public function updateService($request, $id)
+    public function updateMedia($request, $id)
     {
         $validator = Validator::make(
             $request->all(),
             [
-                'title_service' =>  'required',
+                'title_media' =>  'required',
                 'icon'          =>  'image|
                                     mimes:jpeg,png,jpg,gif,svg|
                                     max:3072',
 
             ],
             [
-                'title_service.required' => 'Mohon masukkan nama layanan!',
+                'title_media.required' => 'Mohon masukkan nama layanan!',
                 'icon.image' => 'Pastikan file foto bertipe gambar',
                 'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
                 'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
@@ -395,24 +395,24 @@ class ServiceRepository implements ServiceInterface
         }
         try {
             // search
-            $service = Service::find($id);
+            $media = Media::find($id);
 
             // checkID
-            if (!$service) {
-                return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
+            if (!$media) {
+                return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
             if ($request->hasFile('icon')) {
                 //checkImage
-                if ($service->icon) {
-                    Storage::delete('public/icons/' . $service->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $service->icon);
+                if ($media->icon) {
+                    Storage::delete('public/icons/' . $media->icon);
+                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
                 }
                 $destination = 'public/icons';
                 $icon = $request->file('icon');
-                $label = Str::slug($request->title_service, '-');
+                $label = Str::slug($request->title_media, '-');
                 $imageName = $label . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $service->icon = $imageName;
+                $media->icon = $imageName;
                 //storeOriginal
                 $icon->storeAs($destination, $imageName);
 
@@ -420,32 +420,32 @@ class ServiceRepository implements ServiceInterface
                 Helper::resizeIcon($icon, $imageName, $request);
             } else {
                 if ($request->delete_image) {
-                    Storage::delete('public/icons/' . $service->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $service->icon);
-                    $service->icon = null;
+                    Storage::delete('public/icons/' . $media->icon);
+                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
+                    $media->icon = null;
                 }
-                $service->icon = $service->icon;
+                $media->icon = $media->icon;
             }
 
             // approved
-            $service['title_service'] = $request->title_service ?? $service->title_service;
-            $service['url'] = $request->url ?? $service->url;
+            $media['title_media'] = $request->title_media ?? $media->title_media;
+            $media['url'] = $request->url ?? $media->url;
 
-            $ctg_service_id = $request->ctg_service_id;
-            $ctg = Ctg_Service::where('id', $ctg_service_id)->first();
+            $ctg_media_id = $request->ctg_media_id;
+            $ctg = CtgMedia::where('id', $ctg_media_id)->first();
             if ($ctg) {
-                $service['ctg_service_id'] = $ctg_service_id ?? $service->ctg_service_id;
+                $media['ctg_media_id'] = $ctg_media_id ?? $media->ctg_media_id;
             } else {
-                return $this->error("Tidak ditemukan!", "Kategori service dengan ID = ($ctg_service_id) tidak ditemukan!", 404);
+                return $this->error("Tidak ditemukan!", "Kategori media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
-            $service['created_by'] = $service->created_by;
-            $service['edited_by'] = Auth::user()->id;
+            $media['created_by'] = $media->created_by;
+            $media['edited_by'] = Auth::user()->id;
 
             //save
-            $update = $service->save();
+            $update = $media->save();
             if ($update) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
-                return $this->success("Layanan Berhasil diperbaharui!", $service);
+                return $this->success("Konten/Media Berhasil diperbaharui!", $media);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
@@ -453,23 +453,23 @@ class ServiceRepository implements ServiceInterface
     }
 
     // delete
-    public function deleteService($id)
+    public function deleteMedia($id)
     {
         try {
             // search
-            $service = Service::find($id);
-            if (!$service) {
-                return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
+            $media = Media::find($id);
+            if (!$media) {
+                return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($service->icon) {
-                Storage::delete('public/icons/' . $service->icon);
-                Storage::delete('public/thumbnails/t_icons/' . $service->icon);
+            if ($media->icon) {
+                Storage::delete('public/icons/' . $media->icon);
+                Storage::delete('public/thumbnails/t_icons/' . $media->icon);
             }
             // approved
-            $del = $service->delete();
+            $del = $media->delete();
             if ($del) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
-                return $this->success("COMPLETED", "Layanan dengan ID = ($id) Berhasil dihapus!");
+                return $this->success("COMPLETED", "Konten/Media dengan ID = ($id) Berhasil dihapus!");
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());

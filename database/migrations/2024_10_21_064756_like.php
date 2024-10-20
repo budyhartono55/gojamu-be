@@ -13,15 +13,16 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('category_book', function (Blueprint $table) {
+        Schema::create('like', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("title_category");
-            $table->string("slug");
-            $table->string('created_by')->nullable();
-            $table->string('edited_by')->nullable();
+            $table->string("media_id")->nullable();
+            $table->string("user_id")->nullable();
+            $table->string("created_by"); //auto generate
+            $table->string("edited_by"); //auto generate
             $table->timestamps();
-            $table->foreign('created_by')->references('id')->on('users');
-            $table->foreign('edited_by')->references('id')->on('users');
+
+            $table->foreign('user_id')->references('id')->on('user');
+            $table->foreign('media_id')->references('id')->on('media');
         });
     }
 
@@ -32,6 +33,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('category_book');
+        Schema::dropIfExists('like');
     }
 };
