@@ -124,6 +124,7 @@ class UserRepository implements UserInterface
             'username'     => 'required|unique:users',
             'email'     => 'required|unique:users',
             'password'           => 'required',
+            'jenis_kelamin'           => 'required',
             'confirm_password' => 'required|same:password',
             'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072'
         ]);
@@ -138,10 +139,14 @@ class UserRepository implements UserInterface
                 'name' => $request->name,
                 'username' => $request->username,
                 'email' => $request->email,
+                'jenis_kelamin' => $request->jenis_kelamin,
+                'tentang' => $request->tentang,
                 'image' => $fileName,
                 'password' => bcrypt($request->password),
                 'address' => $request->address,
                 'contact' => $request->contact,
+                'id_belajar' => $request->id_belajar,
+                'role' => $request->role,
                 'created_by' => Auth::user()->id
 
             ];
@@ -201,6 +206,10 @@ class UserRepository implements UserInterface
             $datas['email'] = $request->email == "" ? $datas->email : $request->email;
             $datas['address'] = $request->address;
             $datas['contact'] = $request->contact;
+            $datas['jenis_kelamin'] = $request->jenis_kelamin;
+            $datas['tentang'] = $request->tentang;
+            $datas['id_belajar'] = $request->id_belajar;
+            $datas['role'] = $request->role;
             $datas['edited_by'] = Auth::user()->id;;
             if ($request->hasFile('image')) {
                 // Old iamge delete
