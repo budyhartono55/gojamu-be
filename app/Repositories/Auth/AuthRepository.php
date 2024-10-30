@@ -58,7 +58,7 @@ class AuthRepository implements AuthInterface
             return $this->success("Register Berhasil!", $success);
         } catch (\Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e);
+            return $this->error("Internal Server Error!", $e->getMessage(), 499);
         }
     }
 

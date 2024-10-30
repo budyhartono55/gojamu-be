@@ -18,8 +18,8 @@ return new class extends Migration
             $table->string('name');
             $table->string('username', 50)->unique();
             $table->enum('jenis_kelamin', ['Laki-laki', 'Perempuan']);
-            $table->string('email');
-            $table->text('tentang');
+            $table->string('email')->nullable();
+            $table->text('tentang')->nullable();
             $table->text('address')->nullable();
             $table->string('contact', 20)->nullable();
             $table->timestamp('email_verified_at')->nullable();
