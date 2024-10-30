@@ -445,10 +445,6 @@ class MediaRepository implements MediaInterface
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($media->icon) {
-                Storage::delete('public/icons/' . $media->icon);
-                Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-            }
             // approved
             $del = $media->delete();
             if ($del) {
