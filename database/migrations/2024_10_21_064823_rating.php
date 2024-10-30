@@ -13,18 +13,18 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('like', function (Blueprint $table) {
+        Schema::create('rating', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string("rating")->nullable();
-            $table->date("posted_at")->nullable();
+            $table->date("posted_at");
             $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
             $table->string("created_by"); //auto generate
             $table->string("edited_by"); //auto generate
             $table->timestamps();
 
-            $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('media_id')->references('id')->on('media');
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 

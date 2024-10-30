@@ -24,8 +24,8 @@ return new class extends Migration
             $table->timestamps();
 
             $table->foreign('comment_id')->references('id')->on('comment');
-            $table->foreign('user_id')->references('id')->on('users');
             $table->foreign('media_id')->references('id')->on('media');
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 
