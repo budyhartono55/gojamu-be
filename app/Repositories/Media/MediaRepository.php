@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
 use App\Helpers\Helper;
 use App\Models\CtgMedia;
+use App\Models\Topic;
+use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
 use Intervention\Image\Facades\Image;
@@ -311,17 +313,14 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'icon'          =>  'image|
-                                    mimes:jpeg,png,jpg,gif|
-                                    max:3072',
+                'topic_id' =>  'required',
+                'ytb_url' =>  'required',
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama layanan!',
-                'url.required' => 'URL tidak boleh Kosong!',
-                'ctg_media_id.required' => 'Masukkan ketegori layanan!',
-                'icon.image' => 'Pastikan file foto bertipe gambar',
-                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg dan gif',
-                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'title_media.required' => 'Mohon masukkan nama konten/media!',
+                'ytb_url.required' => 'URL video tidak boleh Kosong!',
+                'topic_id.required' => 'Masukkan topik konten/media!',
+                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
 
@@ -332,8 +331,12 @@ class MediaRepository implements MediaInterface
         try {
             $media = new Media();
             $media->title_media = $request->title_media;
-            $media->url = $request->url ?? '';
+            $media->ytb_url = $request->ytb_url ?? '';
+            $media->posted_at = Carbon::now();
+            $media->report_stat = 'Normal'; //default
 
+
+            //ctg_media_id
             $ctg_media_id = $request->ctg_media_id;
             $ctg = CtgMedia::where('id', $ctg_media_id)->first();
             if ($ctg) {
@@ -342,17 +345,13 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
-            if ($request->hasFile('icon')) {
-                $destination = 'public/icons';
-                $icon = $request->file('icon');
-                $iconName = $media->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
-
-                $media->icon = $iconName;
-                //storeOriginal
-                $icon->storeAs($destination, $iconName);
-
-                // compress to thumbnail 
-                Helper::resizeIcon($icon, $iconName, $request);
+            //topics
+            $topic_id = $request->topic_id;
+            $topic = Topic::where('id', $topic_id)->first();
+            if ($topic) {
+                $media->topic_id = $topic_id;
+            } else {
+                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
             $user = Auth::user();
@@ -382,7 +381,7 @@ class MediaRepository implements MediaInterface
 
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama layanan!',
+                'title_media.required' => 'Mohon masukkan nama konten/media!',
                 'icon.image' => 'Pastikan file foto bertipe gambar',
                 'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
                 'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
