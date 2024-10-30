@@ -351,7 +351,7 @@ class MediaRepository implements MediaInterface
             if ($topic) {
                 $media->topic_id = $topic_id;
             } else {
-                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
+                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($topic_id) tidak ditemukan!", 404);
             }
 
             $user = Auth::user();
@@ -375,22 +375,21 @@ class MediaRepository implements MediaInterface
             $request->all(),
             [
                 'title_media' =>  'required',
-                'icon'          =>  'image|
-                                    mimes:jpeg,png,jpg,gif,svg|
-                                    max:3072',
-
+                'ctg_media_id' =>  'required',
+                'topic_id' =>  'required',
+                'ytb_url' =>  'required',
             ],
             [
                 'title_media.required' => 'Mohon masukkan nama konten/media!',
-                'icon.image' => 'Pastikan file foto bertipe gambar',
-                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'ytb_url.required' => 'URL video tidak boleh Kosong!',
+                'topic_id.required' => 'Masukkan topik konten/media!',
+                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
 
         //check if validation fails
         if ($validator->fails()) {
-            return $this->error("Upps, Validation Failed!", $validator->errors(), 400);
+            return $this->error("Terjadi Kesalahan!, Validasi Gagal.", $validator->errors(), 400);
         }
         try {
             // search
@@ -400,35 +399,12 @@ class MediaRepository implements MediaInterface
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($request->hasFile('icon')) {
-                //checkImage
-                if ($media->icon) {
-                    Storage::delete('public/icons/' . $media->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-                }
-                $destination = 'public/icons';
-                $icon = $request->file('icon');
-                $label = Str::slug($request->title_media, '-');
-                $imageName = $label . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $media->icon = $imageName;
-                //storeOriginal
-                $icon->storeAs($destination, $imageName);
-
-                // compress to thumbnail 
-                Helper::resizeIcon($icon, $imageName, $request);
-            } else {
-                if ($request->delete_image) {
-                    Storage::delete('public/icons/' . $media->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-                    $media->icon = null;
-                }
-                $media->icon = $media->icon;
-            }
 
             // approved
             $media['title_media'] = $request->title_media ?? $media->title_media;
-            $media['url'] = $request->url ?? $media->url;
+            $media['ytb_url'] = $request->ytb_url ?? $media->ytb_url;
+            $media['report_stat'] = $request->report_stat ?? $media->report_stat;
 
             $ctg_media_id = $request->ctg_media_id;
             $ctg = CtgMedia::where('id', $ctg_media_id)->first();
@@ -437,6 +413,15 @@ class MediaRepository implements MediaInterface
             } else {
                 return $this->error("Tidak ditemukan!", "Kategori media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
+
+            $topic_id = $request->topic_id;
+            $topic = Topic::where('id', $topic_id)->first();
+            if ($topic) {
+                $media->topic_id = $topic_id;
+            } else {
+                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($topic_id) tidak ditemukan!", 404);
+            }
+
             $media['created_by'] = $media->created_by;
             $media['edited_by'] = Auth::user()->id;
 
