@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Repositories\Books;
+namespace App\Repositories\Book;
 
 use App\Helpers\Helper;
-use App\Models\CategoryBooks;
+use App\Models\Ctg_Book;
 use App\Models\Event_Program;
-use App\Models\Books;
+use App\Models\Book;
 use App\Models\User;
-use App\Repositories\Books\BooksInterface;
+use App\Repositories\Book\BookInterface;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -17,33 +17,32 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 
-class BooksRepository implements BooksInterface
+class BookRepository implements BookInterface
 {
     private $books;
     // 1 Minute redis expired
     private $expired = 360;
-    private $generalRedisKeys = 'Books-';
+    private $generalRedisKeys = 'Book-';
     private $destinationImage = "images";
     private $destinationImageThumbnail = "thumbnails/t_images";
     private $destinationFile = "files";
     use API_response;
 
-    public function __construct(Books $books)
+    public function __construct(Book $books)
     {
         $this->books = $books;
     }
 
-    public function getBooks($request)
+    public function getBook($request)
     {
         try {
-
+            // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request, 18);
 
-            if (($request->order != null) or ($request->order != "")) {
-                $order = $request->order == "desc" ? "desc" : "asc";
-            } else {
-                $order = "desc";
-            }
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
+            // Step 3: Extract other query parameters
             $getSearch = $request->search;
             $getByCategory = $request->category;
             $getByFavorite = $request->favorite;
@@ -57,70 +56,58 @@ class BooksRepository implements BooksInterface
             $paginate = $request->paginate;
             $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topic=" . $getByTopic . ",#Favorite=" . $getByFavorite . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
-
+            // Step 4: Construct cache key
+            $params = "#id={$getById},#Trash={$getTrash},#Paginate={$paginate},#Order={$order},#Limit={$limit},#Page={$page},#Category={$getByCategory},#Topic={$getByTopic},#Favorite={$getByFavorite},#Event={$getEvent},#Read={$getRead},#Search={$getSearch}";
             $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . $clientIpAddress . "#params" . $params;
+
+            // Step 5: Check if cache exists
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("List Berita By {$params} from (CACHE)", $result);
             }
 
-            if ($request->filled('trash') && $request->trash == "true") {
-                $query = Books::onlyTrashed()->with(['event', 'categories'])->orderBy('posted_at', $order);
-                // $query = Books::onlyTrashed()
-                //     ->join('category_books', 'category_books.id', '=', 'books.category_id')
-                //     ->select(['books.*']);
+            // Step 6: Build the query
+            if ($getTrash === "true") {
+                $query = Book::onlyTrashed()->with(['topics', 'ctg_book', 'favorite', 'user'])->orderBy('posted_at', $order);
             } else {
-                $query = Books::with(['event', 'categories'])->orderBy('posted_at', $order);
-
-
-                // $query = Books::join('category_books', 'category_books.id', '=', 'books.category_id')
-                //     ->select(['books.*']);
+                $query = Book::with(['topics', 'ctg_book', 'favorite', 'user'])->orderBy('posted_at', $order);
             }
 
-            if ($request->filled('event') && $request->event !== "") {
-                $query->whereHas('event', function ($queryEvent) use ($request) {
-                    return $queryEvent->where('slug', Str::slug($request->event));
+            // Step 7: Apply filters if provided
+            if ($getEvent) {
+                $query->whereHas('event', function ($queryEvent) use ($getEvent) {
+                    $queryEvent->where('slug', Str::slug($getEvent));
                 });
-                // $query->where('event.slug',  $getEvent);
             }
 
-
-            if ($request->filled('search')) {
+            if ($getSearch) {
                 $query->where('berita_title', 'LIKE', '%' . $getSearch . '%');
             }
 
-            if ($request->filled('category')) {
-                $query->whereHas('categories', function ($queryCategory) use ($request) {
-                    return $queryCategory->where('slug', Str::slug($request->category));
+            if ($getByCategory) {
+                $query->whereHas('categories', function ($queryCategory) use ($getByCategory) {
+                    $queryCategory->where('slug', Str::slug($getByCategory));
                 });
-                // return self::getByCategory($getByCategory, $order, $limit);
-                // $query->where(['category_books.slug' => $getByCategory]);
             }
 
-            if ($request->filled('filter')) {
-                $filter = $getByFilter == "top" ? 'views'  : 'posted_at';
+            if ($getByFilter) {
+                $filter = ($getByFilter == "top") ? 'views' : 'posted_at';
                 $query->orderBy($filter, $order);
-
-                // return self::getAllBy($getByFilter, $order, $limit);
             }
 
-            if ($request->filled('read')) {
+            if ($getRead) {
                 $query->where('slug', $getRead);
-
                 if ($query->first()) {
-                    $this->addViews($query->first()->id);
+                    $this->addViews($query->first()->id); // Add views to the book
                 }
             }
 
-            if ($request->filled('id')) {
+            if ($getById) {
                 $query->where('id', $getById);
-
-                // return self::getById($getById);
             }
 
-
-            if ($request->filled('paginate') && $paginate == "true") {
+            // Step 8: Handle pagination
+            if ($paginate === "true") {
                 $setPaginate = true;
                 $result = $query->paginate($limit);
             } else {
@@ -128,20 +115,19 @@ class BooksRepository implements BooksInterface
                 $result = $query->limit($limit)->get();
             }
 
+            // Step 9: Modify query result (if needed)
             $datas = Self::queryGetModify($result, $setPaginate, true);
-            // if (!empty($datas)) {
-            //     if (!Auth::check()) {
-            //         $hidden = ['id'];
-            //         $datas->makeHidden($hidden);
-            //     }
+
+            // Step 10: Cache the result for later use
             Redis::set($key, json_encode($datas));
-            Redis::expire($key,  $this->expired);
+            Redis::expire($key, $this->expired);
+
+            // Step 11: Return success response
             return $this->success("List Berita By {$params}", $datas);
-            // }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error!" . $e->getMessage(), "");
+            // Handle exceptions and return error response
+            return $this->error("Internal Server Error: " . $e->getMessage(), "");
         }
-        // }
     }
 
 
@@ -153,14 +139,15 @@ class BooksRepository implements BooksInterface
             'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072',
             'file'           => 'mimes:pdf|max:10240',
             'category_id'  => 'required',
-            'posted_at' => 'required'
+            'posted_at' => 'required',
+            'topic_id' => 'required|array', // Array of topic IDs
         ]);
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
 
         try {
-            $category_id = CategoryBooks::find($request->category_id);
+            $category_id = Ctg_Book::find($request->category_id);
             // check
             if (!$category_id) {
                 return $this->error("Not Found", "Category Buku dengan ID = ($request->category_id) tidak ditemukan!", 404);
@@ -177,20 +164,31 @@ class BooksRepository implements BooksInterface
                 'cover' => $coverName,
                 'slug' => Str::slug($request->title),
                 'category_book_id' => $request->category_id,
-                'topic_id' => json_encode($request->topic_id),
+                // 'topic_id' => json_encode($request->topic_id),
                 'user_id' => Auth::user()->id,
                 'created_by' => Auth::user()->id,
                 'posted_at' => Carbon::createFromFormat('d-m-Y', $request->posted_at)
 
             ];
+
             // Create Berita
-            $add = Books::create($data);
+            $add = Book::create($data);
+            // Step 3: Get the array of topic IDs (you can change this based on the request)
+            $topicIds = $request->topic_id; // Assume $request->topic_id is an array of topic IDs
+
+            // Step 4: Attach the topics to the book using the sync method
+            $add->topics()->sync($topicIds); // This will insert the relationships into the pivot table
+
 
             if ($add) {
+
                 // Storage::disk(['public' => 'books'])->put($fileName, file_get_contents($request->image));
                 // Save Image in Storage folder books
                 Helper::saveImage('cover', $fileName, $request, $this->destinationImage);
                 Helper::saveFile('file', $fileName, $request, $this->destinationFile);
+
+
+
                 // delete Redis when insert data
                 Helper::deleteRedis($this->generalRedisKeys . "*");
 
@@ -218,13 +216,13 @@ class BooksRepository implements BooksInterface
             // return response()->json($validator->errors(), 422);
         }
         try {
-            $category_id = CategoryBooks::find($request->category_id);
+            $category_id = Ctg_Book::find($request->category_id);
             // check
             if (!$category_id) {
                 return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
             }
             // search
-            $datas = Books::find($id);
+            $datas = Book::findOrFail($id);
             // check
             if (!$datas) {
                 return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
@@ -267,6 +265,12 @@ class BooksRepository implements BooksInterface
                 $datas['image'] = $datas->image;
             }
 
+            // Step 5: Sync the topics if topic IDs are provided in the request
+            if ($request->has('topic_id') && is_array($request->topic_id)) {
+                $datas->topics()->sync($request->topic_id); // This will update the pivot table
+            }
+
+
             // update datas
             if ($datas->save()) {
                 // delete Redis when insert data
@@ -285,7 +289,7 @@ class BooksRepository implements BooksInterface
     {
         try {
             // search
-            $data = Books::find($id);
+            $data = Book::find($id);
             if (empty($data)) {
                 return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
             }
@@ -306,7 +310,7 @@ class BooksRepository implements BooksInterface
     {
         try {
 
-            $data = Books::onlyTrashed()->find($id);
+            $data = Book::onlyTrashed()->find($id);
             if (!$data) {
                 return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
             }
@@ -314,6 +318,8 @@ class BooksRepository implements BooksInterface
                 // approved
             ;
             if ($data->forceDelete()) {
+                // Detach topics from the book (this will remove the related records from the pivot table)
+                $data->topics()->detach();
                 // Old image delete
                 Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image);
                 Helper::deleteRedis($this->generalRedisKeys . "*");
@@ -329,7 +335,7 @@ class BooksRepository implements BooksInterface
     public function restore()
     {
         try {
-            $data = Books::onlyTrashed();
+            $data = Book::onlyTrashed();
             if ($data->restore()) {
                 Helper::deleteRedis($this->generalRedisKeys . "*");
                 return $this->success("COMPLETED", "Restore Berita Berhasil!");
@@ -344,7 +350,7 @@ class BooksRepository implements BooksInterface
     public function restoreById($id)
     {
         try {
-            $data = Books::onlyTrashed()->where('id', $id);
+            $data = Book::onlyTrashed()->where('id', $id);
             if ($data->restore()) {
                 Helper::deleteRedis($this->generalRedisKeys . "*");
                 return $this->success("COMPLETED", "Restore Berita dengan ID = ($id) Berhasil!");
@@ -358,20 +364,20 @@ class BooksRepository implements BooksInterface
 
     function addViews($id_berita)
     {
-        $datas = Books::find($id_berita);
+        $datas = Book::find($id_berita);
         $datas['views'] = $datas->views + 1;
         return $datas->save();
     }
 
     // function query($kondisi = "posted_at")
     // {
-    //     return Books::latest($kondisi == "views" ? 'views' : 'posted_at')
+    //     return Book::latest($kondisi == "views" ? 'views' : 'posted_at')
     //         ->select(['books.*']);
     // }
 
     function queryGetCategory($id)
     {
-        return CategoryBooks::find($id);
+        return Ctg_Book::find($id);
     }
 
 

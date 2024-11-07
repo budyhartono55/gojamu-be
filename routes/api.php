@@ -2,8 +2,10 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\CategoryNewsController;
+use App\Http\Controllers\Api\Ctg_BookController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\NewsController;
 use App\Http\Controllers\Api\Ctg_ServiceController;
@@ -170,14 +172,14 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
     // C A T E G O R Y  - N E W S
     // //GET
-    Route::get("/category-news", [CategoryNewsController::class, "index"])->name("category");
-    // Route::get("/category-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    Route::get("/ctg-news", [CategoryNewsController::class, "index"])->name("ctg");
+    // Route::get("/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
     // POST
-    Route::post("/category-news", [CategoryNewsController::class, "add"])->name("createCategory");
+    Route::post("/ctg-news", [CategoryNewsController::class, "add"])->name("createCategory");
     // PATCH
-    Route::patch("/category-news/{id}", [CategoryNewsController::class, "edit"])->name("editCategory");
+    Route::patch("/ctg-news/{id}", [CategoryNewsController::class, "edit"])->name("editCategory");
     // DELETE
-    Route::delete("/category-news/{id}", [CategoryNewsController::class, "delete"])->name("deleteCategory");
+    Route::delete("/ctg-news/{id}", [CategoryNewsController::class, "delete"])->name("deleteCategory");
 
     // =======================================================================================================
 
@@ -238,8 +240,21 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
 
     // C A T E G O R Y N E W S
     // //GET
-    Route::get("/public/category-news", [CategoryNewsController::class, "index"])->name("category");
-    // Route::get("/public/category-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    Route::get("/public/ctg-news", [CategoryNewsController::class, "index"])->name("ctg");
+    // Route::get("/public/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+
+
+    // B O O K 
+    // GET
+    Route::get('/public/book', [BookController::class, "getBook"])->name("book");
+    // =======================================================================================================
+
+    // C A T E G O R Y B O O K
+    // //GET
+    Route::get("/public/ctg-book", [Ctg_BookController::class, "index"])->name("ctg-book");
+    // Route::get("/public/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+
+
 
     // =======================================================================================================
     // S E T T I N G 

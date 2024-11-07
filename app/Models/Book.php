@@ -8,11 +8,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 
-class Books extends Model
+class Book extends Model
 {
     use HasFactory, HasUuids, SoftDeletes;
     protected $guarded = [];
-    protected $table = 'books';
+    protected $table = 'book';
     protected $hidden = [
         'created_at',
         'updated_at',
@@ -35,14 +35,18 @@ class Books extends Model
         return $this->hasMany(Favorite::class, 'book_id');
     }
 
-    public function categories()
+    public function ctg_book()
     {
-        return $this->belongsTo(CategoryBooks::class, 'category_book_id');
+        return $this->belongsTo(Ctg_Book::class, 'ctg_book_id');
     }
     public function topics()
     {
-        return $this->belongsTo(Topic::class, 'topic_id', 'id');
+        return $this->belongsToMany(Topic::class, 'book_topic', 'book_id', 'topic_id');
     }
+    // public function topics()
+    // {
+    //     return $this->belongsTo(Topic::class, 'topic_id', 'id');
+    // }
 
     //================================================
     public function createdBy()

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Repositories\CategoryNews;
+namespace App\Repositories\Ctg_News;
 
 use App\Helpers\Helper;
-use App\Repositories\CategoryNews\CategoryNewsInterface;
-use App\Models\CategoryNews;
+use App\Repositories\Ctg_News\CtgNewsInterface;
+use App\Models\Ctg_News;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Redis;
@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
 
 
-class CategoryNewsRepository implements CategoryNewsInterface
+class CtgNewsRepository implements CtgNewsInterface
 {
 
     // Response API HANDLER
@@ -22,9 +22,9 @@ class CategoryNewsRepository implements CategoryNewsInterface
     protected $category;
     //Cache for 1 hour (3600 seconds)
     private $expiredRedis = 3600;
-    private $nameKeyRedis = 'CategoryNews-';
+    private $nameKeyRedis = 'Ctg_News-';
 
-    public function __construct(CategoryNews $category)
+    public function __construct(Ctg_News $category)
     {
         $this->category = $category;
     }
@@ -33,13 +33,12 @@ class CategoryNewsRepository implements CategoryNewsInterface
     public function getAllCategories($request)
     {
         try {
+            // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request);
 
-            if (($request->order != null) or ($request->order != "")) {
-                $order = $request->order == "desc" ? "desc" : "asc";
-            } else {
-                $order = "desc";
-            }
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
             $getSearch = $request->search;
             $getRead = $request->read;
             $getById = $request->id;
@@ -56,14 +55,14 @@ class CategoryNewsRepository implements CategoryNewsInterface
             }
 
             // if ($request->limit === "false") {
-            //     $datas = CategoryNews::latest('created_at')->get();
+            //     $datas = Ctg_News::latest('created_at')->get();
             //     $category = $this->($datas, true, false);
             // } else {
-            //     $datas = CategoryNews::latest('created_at')->paginate($limit);
+            //     $datas = Ctg_News::latest('created_at')->paginate($limit);
             //     $category = Helper::queryModifyUserForDatas($datas, true);
             // }
 
-            $query = CategoryNews::orderBy('title_category', $order);
+            $query = Ctg_News::orderBy('title_category', $order);
 
 
             if ($request->filled('id')) {
@@ -110,7 +109,7 @@ class CategoryNewsRepository implements CategoryNewsInterface
 
             //=========================
             // NO-REDIS
-            // $kategori = CategoryNews::paginate(3);
+            // $kategori = Ctg_News::paginate(3);
             // return $this->success(" List kesuluruhan kategori", $kategori);
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
@@ -142,7 +141,7 @@ class CategoryNewsRepository implements CategoryNewsInterface
 
             ];
             // Create category Berita
-            $add = CategoryNews::create($data);
+            $add = Ctg_News::create($data);
 
             if ($add) {
                 Helper::deleteRedis($this->nameKeyRedis . '*');
@@ -170,7 +169,7 @@ class CategoryNewsRepository implements CategoryNewsInterface
 
         try {
             // search
-            $kategori = CategoryNews::find($id);
+            $kategori = Ctg_News::find($id);
 
             // check
             if (!$kategori) {
@@ -203,7 +202,7 @@ class CategoryNewsRepository implements CategoryNewsInterface
                 return $this->error("Failed", "Kategori Berita dengan ID = ($id) terpakai di Berita!", 400);
             }
             // search
-            $kategori = CategoryNews::find($id);
+            $kategori = Ctg_News::find($id);
             if (!$kategori) {
                 return $this->error("Not Found", "Kategori Berita dengan ID = ($id) tidak ditemukan!", 404);
             }
