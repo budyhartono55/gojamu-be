@@ -27,6 +27,7 @@ return new class extends Migration
             $table->text('image')->nullable();
             $table->enum('id_belajar', ['Ya', 'Tidak'])->default('Tidak');
             $table->enum('role', ['Admin', 'Umum', 'Guru', 'Murid'])->default('Umum');
+            $table->datetime('last_login')->nullable();
             $table->string('created_by')->nullable();
             $table->string('edited_by')->nullable();
             $table->rememberToken();
