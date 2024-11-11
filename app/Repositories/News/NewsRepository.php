@@ -3,7 +3,7 @@
 namespace App\Repositories\News;
 
 use App\Helpers\Helper;
-use App\Models\CategoryNews;
+use App\Models\ctg_news;
 use App\Models\Event_Program;
 use App\Models\News;
 use App\Models\User;
@@ -36,13 +36,12 @@ class NewsRepository implements NewsInterface
     {
         try {
 
+            // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request);
 
-            if (($request->order != null) or ($request->order != "")) {
-                $order = $request->order == "desc" ? "desc" : "asc";
-            } else {
-                $order = "desc";
-            }
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
             $getSearch = $request->search;
             $getByCategory = $request->category;
             $getByFilter = $request->filter;
@@ -106,12 +105,25 @@ class NewsRepository implements NewsInterface
                 $query->where('slug', $getRead);
 
                 if ($query->first()) {
-                    $this->addViews($query->first()->id);
+                    // $query->incrementViews();
+                    // Check if the user has already viewed this book in the current session or IP
+                    if (!session()->has('viewed_book_' . $getRead)) {
+                        // Increment the views count if the book hasn't been viewed before in this session
+                        $query->incrementViews();
+                        session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
+                    }
+
+                    // $this->addViews($query->first()->id);
                 }
             }
 
             if ($request->filled('id')) {
                 $query->where('id', $getById);
+                if (!session()->has('viewed_book_' . $getRead)) {
+                    // Increment the views count if the book hasn't been viewed before in this session
+                    $query->incrementViews();
+                    session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
+                }
 
                 // return self::getById($getById);
             }
@@ -156,7 +168,7 @@ class NewsRepository implements NewsInterface
         }
 
         try {
-            $category_id = CategoryNews::find($request->category_id);
+            $category_id = ctg_news::find($request->category_id);
             // check
             if (!$category_id) {
                 return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
@@ -218,7 +230,7 @@ class NewsRepository implements NewsInterface
             // return response()->json($validator->errors(), 422);
         }
         try {
-            $category_id = CategoryNews::find($request->category_id);
+            $category_id = ctg_news::find($request->category_id);
             // check
             if (!$category_id) {
                 return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
@@ -371,7 +383,7 @@ class NewsRepository implements NewsInterface
 
     function queryGetCategory($id)
     {
-        return CategoryNews::find($id);
+        return ctg_news::find($id);
     }
 
 

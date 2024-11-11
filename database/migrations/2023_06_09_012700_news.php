@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer("views")->default(0);
             $table->string("image")->nullable();
             $table->date("posted_at");
-            $table->string("category_id");
+            $table->string("ctg_news_id");
             $table->string("user_id");
             $table->string("event_id")->nullable();
             $table->string('created_by')->nullable();
@@ -29,7 +29,7 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
             $table->foreign('user_id')->references('id')->on('users');
-            $table->foreign('category_id')->references('id')->on('category_news')->onDelete('cascade');
+            $table->foreign('ctg_news_id')->references('id')->on('ctg_news')->onDelete('cascade');
             $table->foreign('created_by')->references('id')->on('users');
             $table->foreign('edited_by')->references('id')->on('users');
         });

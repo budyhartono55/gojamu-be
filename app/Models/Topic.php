@@ -21,7 +21,7 @@ class Topic extends Model
     //R E L A T I O N ==============
     public function books()
     {
-        return $this->hasMany(Books::class, 'topic_id');
+        return $this->belongsToMany(Book::class, 'book_topic', 'topic_id', 'book_id');
     }
     public function medias()
     {

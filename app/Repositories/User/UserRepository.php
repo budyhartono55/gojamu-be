@@ -98,6 +98,11 @@ class UserRepository implements UserInterface
 
 
             if (!empty($datas)) {
+
+                if ($datas->id != auth()->user()->id) {
+                    return $this->error("Unauthorized", "Anda tidak memiliki hak untuk mengedit data ini!", 403);
+                }
+
                 $data = Helper::queryModifyUserForDatas($datas);
                 Redis::set($keyOne, json_encode($data));
                 Redis::expire($keyOne, $this->expired); // Cache for 60 seconds

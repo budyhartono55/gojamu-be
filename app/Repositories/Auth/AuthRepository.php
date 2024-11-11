@@ -17,8 +17,7 @@ use App\Models\Contact;
 use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\resetPassword;
-
-
+use Carbon\Carbon;
 
 class AuthRepository implements AuthInterface
 {
@@ -35,61 +34,83 @@ class AuthRepository implements AuthInterface
     public function register($request)
     {
         $validator = Validator::make($request->all(), [
-            'name'     => 'required',
-            'username'     => 'required|unique:users',
-            'email'     => 'required|email',
-            'password'           => 'required',
+            'name' => 'required',
+            'username' => 'required|unique:users',
+            'email' => 'required|email|unique:users',
+            'password' => [
+                'required',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).+$/'
+            ],
             'confirm_password' => 'required|same:password'
         ]);
 
         if ($validator->fails()) {
-            return $this->error("Validator!", $validator->errors(), 422);
+            return $this->error("Validation Error", $validator->errors(), 422);
         }
 
         try {
-
+            // Prepare input data
             $input = $request->all();
             $input['password'] = bcrypt($input['password']);
+
+            // Create the user
             $user = User::create($input);
 
-            // $success['token'] = $user->createToken('auth_token')->plainTextToken;
-            $success['name'] = $user->name;
+            // Prepare success response
+            $success = [
+                'name' => $user->name,
+                // 'token' => $user->createToken('auth_token')->plainTextToken // Uncomment if you want to generate a token upon registration
+            ];
 
-            return $this->success("Register Berhasil!", $success);
+            return $this->success("Registration Successful!", $success);
         } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e->getMessage(), 499);
+            return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
+
 
     public function login($request)
     {
         $validator = Validator::make($request->all(), [
-            'username'     => 'required',
-            'password'           => 'required',
+            'username' => 'required',
+            'password' => 'required',
         ]);
 
         if ($validator->fails()) {
-            return $this->error("Validator!", $validator->errors(), 422);
+            return $this->error("Validator failed!", $validator->errors(), 422);
         }
+
         try {
+            // Attempt login with either username or email
+            if (
+                Auth::attempt(['username' => $request->username, 'password' => $request->password]) ||
+                Auth::attempt(['email' => $request->username, 'password' => $request->password])
+            ) {
 
-            if (Auth::attempt(['username' => $request->username, 'password' => $request->password]) or Auth::attempt(['email' => $request->username, 'password' => $request->password])) {
+                // Get the authenticated user
                 $auth = Auth::user();
-                $success['token'] = $auth->createToken('auth_token')->plainTextToken;
-                $success['username'] = $auth->username;
-                $success['name'] = $auth->name;
 
-                return $this->success("Login Sukses", $success);
+                // Generate token and update last_login
+                $auth->last_login = Carbon::now();
+                $auth->save();
+
+                // Prepare success response
+                $success = [
+                    'token' => $auth->createToken('auth_token')->plainTextToken,
+                    'username' => $auth->username,
+                    'name' => $auth->name,
+                ];
+
+                return $this->success("Login Successful", $success);
             } else {
-
-                return $this->error("Login Gagal", "Username atau Password Salah", 400);
+                return $this->error("Login Failed", "Incorrect username or password", 400);
             }
         } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e);
+            return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
+
 
     public function logout($request)
     {
@@ -103,34 +124,43 @@ class AuthRepository implements AuthInterface
         }
     }
 
-    //changePassword
     public function changePassword($request)
     {
         $validator = Validator::make($request->all(), [
             'old_password' => 'required',
-            'new_password' => 'required',
+            'new_password' => [
+                'required',
+                'min:8', // Minimum length of 8 characters
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).+$/', // At least 1 uppercase and 1 symbol
+            ],
             'confirm_newPassword' => 'required|same:new_password'
         ]);
 
         if ($validator->fails()) {
-            return $this->error("Validator!", $validator->errors(), 422);
+            return $this->error("Validation Error!", $validator->errors(), 422);
         }
 
         try {
+            // Check if the old password matches the stored password
             if (!Hash::check($request->old_password, auth()->user()->password)) {
-                return $this->error("Validator!", "The old password does not match", 400);
+                return $this->error("Validation Error!", "The old password does not match", 400);
             }
 
-            $update =  User::whereId(auth()->user()->id)->update([
+            // Update the password
+            $update = User::whereId(auth()->user()->id)->update([
                 'password' => Hash::make($request->new_password)
             ]);
+
             if ($update) {
-                return $this->success("Sukses!", "Password updated successfully");
-            };
+                return $this->success("Success!", "Password updated successfully");
+            }
+
+            return $this->error("Internal Server Error", "Failed to update password", 500);
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error!", $e, 500);
+            return $this->error("Internal Server Error!", $e->getMessage(), 500);
         }
     }
+
 
     public function forgotPassword($request)
     {

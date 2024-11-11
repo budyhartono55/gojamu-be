@@ -7,21 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 
-class CategoryNews extends Model
+class Ctg_Book extends Model
 {
     use HasFactory, HasUuids;
 
     protected $guarded = [];
-    protected $table = 'category_news';
+    protected $table = 'ctg_book';
     protected $hidden = [
         'created_at',
         'updated_at'
     ];
 
     //R E L A T I O N ==============
-    public function news()
+    public function books()
     {
-        return $this->hasMany(News::class, 'category_id');
+        return $this->hasMany(Book::class, 'ctg_book_id');
     }
 
     //================================================

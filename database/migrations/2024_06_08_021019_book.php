@@ -13,13 +13,21 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('category_book', function (Blueprint $table) {
+        Schema::create('book', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("title_category");
-            $table->string("slug");
+            $table->string("title");
+            $table->text("file")->nullable();
+            $table->string("file_size");
+            $table->text("cover")->nullable();
+            $table->date("posted_at");
+            $table->string("ctg_book_id");
+            // $table->string("topic_id");
             $table->string('created_by')->nullable();
             $table->string('edited_by')->nullable();
             $table->timestamps();
+
+            $table->foreign('ctg_book_id')->references('id')->on('ctg_book');
+            // $table->foreign('topic_id')->references('id')->on('topic');
         });
     }
 
@@ -30,6 +38,6 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('category_book');
+        Schema::dropIfExists('book');
     }
 };

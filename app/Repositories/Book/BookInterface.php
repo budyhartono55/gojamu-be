@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Repositories\Books;
+namespace App\Repositories\Book;
 
-interface BooksInterface
+interface BookInterface
 {
-    public function getBooks($request);
+    public function getBook($request);
 
     // public function getAll($request);
     // public function getById($id);
@@ -18,6 +18,6 @@ interface BooksInterface
     // public function getAllBy($kondisi, $request);
     // public function search($keyword, $request);
     // public function read($slug);
-    // public function geLimitBooks($limit);
-    // public function mergeBooksFromOpd();
+    // public function geLimitBook($limit);
+    // public function mergeBookFromOpd();
 }

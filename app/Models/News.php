@@ -35,9 +35,9 @@ class News extends Model
         return $this->belongsTo(Event_Program::class, 'event_id');
     }
 
-    public function categories()
+    public function ctg_news()
     {
-        return $this->belongsTo(CategoryNews::class, 'category_id');
+        return $this->belongsTo(Ctg_News::class, 'ctg_news_id');
     }
 
     //================================================
@@ -49,5 +49,11 @@ class News extends Model
     public function editedBy()
     {
         return $this->belongsTo(User::class, 'edited_by');
+    }
+
+    public function incrementViews()
+    {
+        // Increment views count by 1
+        $this->increment('views');
     }
 }

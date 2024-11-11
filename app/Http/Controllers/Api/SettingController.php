@@ -24,11 +24,11 @@ class SettingController extends Controller
         return $this->settingRepository->getAll($request);
     }
 
-    public function getById($id)
-    {
+    // public function getById($id)
+    // {
 
-        return $this->settingRepository->getById($id);
-    }
+    //     return $this->settingRepository->getById($id);
+    // }
 
     public function save(Request $request)
     {
