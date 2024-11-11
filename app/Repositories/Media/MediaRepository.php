@@ -211,13 +211,21 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Konten/Media dengan keyword = ($keyword).", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
-                ->where(function ($query) use ($keyword) {
-                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
-                    // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
-                })
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])->where(function ($query) use ($keyword) {
+                $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+            })
                 ->latest('created_at')
                 ->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             if ($media) {
                 $modifiedData = $media->items();
@@ -308,6 +316,7 @@ class MediaRepository implements MediaInterface
         try {
             $media = new Media();
             $media->title_media = $request->title_media;
+            $media->description = $request->description;
             $media->ytb_url = $request->ytb_url ?? '';
             $media->posted_at = Carbon::now();
             $media->report_stat = 'Normal'; //default
@@ -384,6 +393,7 @@ class MediaRepository implements MediaInterface
 
             // approved
             $media['title_media'] = $request->title_media ?? $media->title_media;
+            $media['description'] = $request->description ?? $media->description;
             $media['ytb_url'] = $request->ytb_url ?? $media->ytb_url;
             $media['report_stat'] = $request->report_stat ?? $media->report_stat;
 

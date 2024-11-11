@@ -16,6 +16,7 @@ return new class extends Migration
         Schema::create('media', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string("title_media")->nullable();
+            $table->text("description")->nullable();
             $table->text("ytb_url")->nullable();
             $table->date("posted_at")->nullable();
             $table->string("like_count")->nullable();
