@@ -44,7 +44,7 @@ class MediaRepository implements MediaInterface
     public function getMedias($request)
     {
         $limit = Helper::limitDatas($request);
-        $getSlug = $request->slug;
+        // $getSlug = $request->slug;
         $getCategory = $request->ctg;
         $getKeyword =  $request->search;
 
@@ -120,7 +120,6 @@ class MediaRepository implements MediaInterface
                 ->where('ctg_media_id', $category->id)
                 ->where(function ($query) use ($keyword) {
                     $query->where('title_media', 'LIKE', '%' . $keyword . '%');
-                    // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->latest('created_at')
                 ->paginate($limit);
@@ -289,10 +288,12 @@ class MediaRepository implements MediaInterface
                 $createdBy = User::select('name')->find($media->created_by);
                 $editedBy = User::select('name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
+                $topic = Topic::select('id', 'title', 'slug')->find($media->topic_id);
 
                 $media->created_by = optional($createdBy)->only(['name']);
                 $media->edited_by = optional($editedBy)->only(['name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
+                $media->topic_id = optional($topic)->only(['id', 'title', 'slug']);
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
@@ -313,13 +314,13 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'topic_id' =>  'required',
+                'topic_id' =>  'required | array',
                 'ytb_url' =>  'required',
             ],
             [
                 'title_media.required' => 'Mohon masukkan nama konten/media!',
                 'ytb_url.required' => 'URL video tidak boleh Kosong!',
-                'topic_id.required' => 'Masukkan topik konten/media!',
+                'topic_id.required' => 'Masukkan topik konten/media (berupa array)!',
                 'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
@@ -345,20 +346,22 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
+
             //topics
-            $topic_id = $request->topic_id;
-            $topic = Topic::where('id', $topic_id)->first();
-            if ($topic) {
-                $media->topic_id = $topic_id;
-            } else {
-                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($topic_id) tidak ditemukan!", 404);
+            $topic_ids = $request->topic_id;
+            $invalid_topic_ids = array_diff($topic_ids, Topic::whereIn('id', $topic_ids)->pluck('id')->toArray());
+            if (!empty($invalid_topic_ids)) {
+                return $this->error("Topik Tidak Valid", "Topik dengan ID " . implode(', ', $invalid_topic_ids) . " tidak ditemukan!", 404);
             }
 
             $user = Auth::user();
             $media->created_by = $user->id;
             $media->edited_by = $user->id;
 
+            // save
+            $media->topics()->attach($topic_ids);
             $create = $media->save();
+
             if ($create) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("Konten/Media Berhasil ditambahkan!", $media);
@@ -376,7 +379,7 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'topic_id' =>  'required',
+                'topic_id' =>  'required | array',
                 'ytb_url' =>  'required',
             ],
             [
@@ -414,19 +417,19 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
-            $topic_id = $request->topic_id;
-            $topic = Topic::where('id', $topic_id)->first();
-            if ($topic) {
-                $media->topic_id = $topic_id;
-            } else {
-                return $this->error("Tidak ditemukan!", "Topik Media dengan ID = ($topic_id) tidak ditemukan!", 404);
+            $topic_ids = $request->topic_id;
+            $invalid_topic_ids = array_diff($topic_ids, Topic::whereIn('id', $topic_ids)->pluck('id')->toArray());
+            if (!empty($invalid_topic_ids)) {
+                return $this->error("Topik Tidak Valid", "Topik dengan ID " . implode(', ', $invalid_topic_ids) . " tidak ditemukan!", 404);
             }
 
             $media['created_by'] = $media->created_by;
             $media['edited_by'] = Auth::user()->id;
 
             //save
+            $media->topics()->sync($topic_ids);
             $update = $media->save();
+
             if ($update) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("Konten/Media Berhasil diperbaharui!", $media);
@@ -446,6 +449,7 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
             // approved
+            $media->topics()->detach();
             $del = $media->delete();
             if ($del) {
                 RedisHelper::dropKeys($this->generalRedisKeys);

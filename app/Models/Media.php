@@ -28,7 +28,8 @@ class Media extends Model
     }
     public function topics()
     {
-        return $this->belongsTo(Topic::class, 'topic_id', 'id');
+        // return $this->belongsTo(Topic::class, 'topic_id', 'id');
+        return $this->belongsToMany(Topic::class, 'pivot_media_topic', 'topic_id', 'media_id', 'id');
     }
     public function favorites()
     {
