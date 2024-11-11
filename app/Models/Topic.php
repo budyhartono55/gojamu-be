@@ -26,7 +26,7 @@ class Topic extends Model
     public function medias()
     {
         // return $this->hasMany(Media::class, 'topic_id');
-        return $this->belongsToMany(Media::class, 'pivot_media_topic', 'topic_id', 'media_id', 'id');
+        return $this->belongsToMany(Media::class, 'pivot_media_topic', 'media_id', 'topic_id', 'id');
     }
 
     //================================================

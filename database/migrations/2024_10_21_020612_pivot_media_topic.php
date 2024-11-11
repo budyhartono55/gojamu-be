@@ -14,14 +14,8 @@ return new class extends Migration
     public function up()
     {
         Schema::create('pivot_media_topic', function (Blueprint $table) {
-            $table->uuid('id')->primary();
-            $table->string("media_id");
-            $table->string("topic_id");
-            $table->string("created_by"); //auto generate
-            $table->string("edited_by"); //auto generate
-            $table->timestamps();
-
-            $table->primary(['media_id', 'topic_id']);
+            $table->string("topic_id")->onDelete('cascade');
+            $table->string("media_id")->onDelete('cascade');
         });
     }
 

@@ -234,42 +234,6 @@ class MediaRepository implements MediaInterface
         }
     }
 
-    // public function showBySlug($slug)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_" . $slug;
-    //         $keyAuth = $this->generalRedisKeys . "auth_" . $slug;
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE): Detail Konten/Media dengan slug = ($slug)", $result);
-    //         }
-
-    //         $slug = Str::slug($slug);
-    //         $media = Media::where('slug', $slug)
-    //             ->latest('created_at')
-    //             ->first();
-
-    //         if ($media) {
-    //             $createdBy = User::select('name')->find($media->created_by);
-    //             $editedBy = User::select('name')->find($media->edited_by);
-    //             $ctgMedias = CtgMedia::select(['id', 'title_ctg', 'slug'])->find($media->ctg_media_id);
-
-    //             $media->ctg_media_id = optional($ctgMedias)->only(['id', 'title_ctg', 'slug']);
-    //             $media->created_by = optional($createdBy)->only(['name']);
-    //             $media->edited_by = optional($editedBy)->only(['name']);
-
-    //             $key = Auth::check() ? $key : $key;
-    //             Redis::setex($key, 60, json_encode($media));
-    //             return $this->success("Detail Konten/Media dengan slug = ($slug)", $media);
-    //         } else {
-    //             return $this->error("Not Found", "Konten/Media dengan slug = ($slug) tidak ditemukan!", 404);
-    //         }
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-
     // findOne
     public function findById($id)
     {
@@ -314,13 +278,14 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'topic_id' =>  'required | array',
+                'topic_id' =>  'required',
                 'ytb_url' =>  'required',
             ],
             [
                 'title_media.required' => 'Mohon masukkan nama konten/media!',
                 'ytb_url.required' => 'URL video tidak boleh Kosong!',
-                'topic_id.required' => 'Masukkan topik konten/media (berupa array)!',
+                'topic_id.required' => 'Masukkan topik konten/media!',
+                'topic_id.array' => 'Masukkan topik konten/media berupa array!',
                 'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
@@ -336,7 +301,6 @@ class MediaRepository implements MediaInterface
             $media->posted_at = Carbon::now();
             $media->report_stat = 'Normal'; //default
 
-
             //ctg_media_id
             $ctg_media_id = $request->ctg_media_id;
             $ctg = CtgMedia::where('id', $ctg_media_id)->first();
@@ -346,12 +310,14 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
-
             //topics
-            $topic_ids = $request->topic_id;
-            $invalid_topic_ids = array_diff($topic_ids, Topic::whereIn('id', $topic_ids)->pluck('id')->toArray());
-            if (!empty($invalid_topic_ids)) {
-                return $this->error("Topik Tidak Valid", "Topik dengan ID " . implode(', ', $invalid_topic_ids) . " tidak ditemukan!", 404);
+            $cleaned_topic_ids = str_replace(' ', '', $request->topic_id);
+            $topic_ids = explode(',', $cleaned_topic_ids);
+            foreach ($topic_ids as $topic_id) {
+                $topic = Topic::where('id', $topic_id)->first();
+                if (!$topic) {
+                    return $this->error("Tidak ditemukan!", "Topik dengan ID = ($topic_id) tidak ditemukan!", 404);
+                }
             }
 
             $user = Auth::user();
@@ -359,8 +325,8 @@ class MediaRepository implements MediaInterface
             $media->edited_by = $user->id;
 
             // save
-            $media->topics()->attach($topic_ids);
             $create = $media->save();
+            $media->topics()->attach($topic_ids);
 
             if ($create) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
@@ -379,7 +345,7 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'topic_id' =>  'required | array',
+                'topic_id' =>  'required',
                 'ytb_url' =>  'required',
             ],
             [
@@ -417,18 +383,21 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
-            $topic_ids = $request->topic_id;
-            $invalid_topic_ids = array_diff($topic_ids, Topic::whereIn('id', $topic_ids)->pluck('id')->toArray());
-            if (!empty($invalid_topic_ids)) {
-                return $this->error("Topik Tidak Valid", "Topik dengan ID " . implode(', ', $invalid_topic_ids) . " tidak ditemukan!", 404);
+            $cleaned_topic_ids = str_replace(' ', '', $request->topic_id);
+            $topic_ids = explode(',', $cleaned_topic_ids);
+            foreach ($topic_ids as $topic_id) {
+                $topic = Topic::where('id', $topic_id)->first();
+                if (!$topic) {
+                    return $this->error("Tidak ditemukan!", "Topik dengan ID = ($topic_id) tidak ditemukan!", 404);
+                }
             }
 
             $media['created_by'] = $media->created_by;
             $media['edited_by'] = Auth::user()->id;
 
             //save
-            $media->topics()->sync($topic_ids);
             $update = $media->save();
+            $media->topics()->sync($topic_ids);
 
             if ($update) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
