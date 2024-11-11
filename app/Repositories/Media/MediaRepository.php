@@ -125,13 +125,23 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
                 ->where('ctg_media_id', $category->id)
                 ->where(function ($query) use ($keyword) {
-                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->latest('created_at')
                 ->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             // if ($media->total() > 0) {
             if ($media) {
