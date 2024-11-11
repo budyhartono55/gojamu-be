@@ -171,10 +171,19 @@ class MediaRepository implements MediaInterface
             }
             $category = CtgMedia::where('slug', $slug)->first();
             if ($category) {
-                $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+                $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }])
                     ->where('ctg_media_id', $category->id)
                     ->latest('created_at')
                     ->paginate($limit);
+
+                //clear eager load topics
+                foreach ($media->items() as $mediaItem) {
+                    foreach ($mediaItem->topics as $topic) {
+                        $topic->makeHidden(['pivot']);
+                    }
+                }
 
                 // if ($media->total() > 0) {
                 $modifiedData = $media->items();
