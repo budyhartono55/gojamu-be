@@ -25,12 +25,12 @@ class Book extends Model
 
     // relasi one to many (comment)
 
-    public function users()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
+    // public function user()
+    // {
+    //     return $this->belongsTo(User::class, 'user_id');
+    // }
 
-    public function favorites()
+    public function favorite()
     {
         return $this->hasMany(Favorite::class, 'book_id');
     }

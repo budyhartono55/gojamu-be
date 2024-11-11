@@ -4,22 +4,20 @@ namespace App\Repositories\Book;
 
 use App\Helpers\Helper;
 use App\Models\Ctg_Book;
-use App\Models\Event_Program;
 use App\Models\Book;
-use App\Models\User;
 use App\Repositories\Book\BookInterface;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Exception;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 
 class BookRepository implements BookInterface
 {
-    private $books;
+    private $book;
     // 1 Minute redis expired
     private $expired = 360;
     private $generalRedisKeys = 'Book-';
@@ -28,86 +26,101 @@ class BookRepository implements BookInterface
     private $destinationFile = "files";
     use API_response;
 
-    public function __construct(Book $books)
+    public function __construct(Book $book)
     {
-        $this->books = $books;
+        $this->book = $book;
     }
 
     public function getBook($request)
     {
         try {
             // Step 1: Get limit from helper or set default
-            $limit = Helper::limitDatas($request, 18);
+            $limit = Helper::limitDatas($request);
 
             // Step 2: Determine order direction (asc/desc)
             $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
 
-            // Step 3: Extract other query parameters
             $getSearch = $request->search;
             $getByCategory = $request->category;
-            $getByFavorite = $request->favorite;
-            $getByTopic = $request->topic;
             $getByFilter = $request->filter;
+            $getByTopics = $request->topics;
             $getRead = $request->read;
             $getById = $request->id;
             $getTrash = $request->trash;
             $getEvent = $request->event;
             $page = $request->page;
             $paginate = $request->paginate;
-            $clientIpAddress = $request->getClientIp();
+            // $clientIpAddress = $request->getClientIp();
 
-            // Step 4: Construct cache key
-            $params = "#id={$getById},#Trash={$getTrash},#Paginate={$paginate},#Order={$order},#Limit={$limit},#Page={$page},#Category={$getByCategory},#Topic={$getByTopic},#Favorite={$getByFavorite},#Event={$getEvent},#Read={$getRead},#Search={$getSearch}";
-            $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . $clientIpAddress . "#params" . $params;
+            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
-            // Step 5: Check if cache exists
+            $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . "#params" . $params;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
-                return $this->success("List Berita By {$params} from (CACHE)", $result);
+                return $this->success("List Book By {$params} from (CACHE)", $result);
             }
 
             // Step 6: Build the query
             if ($getTrash === "true") {
-                $query = Book::onlyTrashed()->with(['topics', 'ctg_book', 'favorite', 'user'])->orderBy('posted_at', $order);
+                $query = Book::onlyTrashed()->with(['topics', 'ctg_book', 'favorite'])->orderBy('posted_at', $order);
             } else {
-                $query = Book::with(['topics', 'ctg_book', 'favorite', 'user'])->orderBy('posted_at', $order);
+                $query = Book::with(['topics', 'ctg_book', 'favorite'])->orderBy('posted_at', $order);
             }
 
-            // Step 7: Apply filters if provided
-            if ($getEvent) {
-                $query->whereHas('event', function ($queryEvent) use ($getEvent) {
-                    $queryEvent->where('slug', Str::slug($getEvent));
-                });
-            }
-
-            if ($getSearch) {
+            // Step 4: Apply search filter
+            if ($request->filled('search')) {
                 $query->where('berita_title', 'LIKE', '%' . $getSearch . '%');
             }
 
-            if ($getByCategory) {
-                $query->whereHas('categories', function ($queryCategory) use ($getByCategory) {
-                    $queryCategory->where('slug', Str::slug($getByCategory));
+            // Step 5: Apply category filter
+            if ($request->filled('category')) {
+                $query->whereHas('ctg_book', function ($queryCategory) use ($request) {
+                    return $queryCategory->where('slug', Str::slug($request->category));
                 });
             }
 
-            if ($getByFilter) {
-                $filter = ($getByFilter == "top") ? 'views' : 'posted_at';
+            // Step 5: Apply category filter
+            if ($request->filled('topics')) {
+                $query->whereHas('topics', function ($queryTopic) use ($request) {
+                    return $queryTopic->where('slug', Str::slug($request->topics));
+                });
+            }
+
+            // Step 6: Apply custom filter for sorting
+            if ($request->filled('filter')) {
+                $filter = $getByFilter == "top" ? 'views' : 'posted_at';
                 $query->orderBy($filter, $order);
             }
 
-            if ($getRead) {
-                $query->where('slug', $getRead);
-                if ($query->first()) {
-                    $this->addViews($query->first()->id); // Add views to the book
+            // Step 7: Apply read filter and increment views if not already viewed
+            if ($request->filled('read')) {
+                $bookItem = $query->where('slug', $getRead)->first();
+
+
+                if ($bookItem) {
+                    if (!session()->has('viewed_book_' . $getRead)) {
+                        // Increment the views count if the book hasn't been viewed before in this session
+                        $bookItem->increment('views');
+                        session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
+                    }
                 }
             }
 
-            if ($getById) {
-                $query->where('id', $getById);
+            // Step 8: Apply id filter and increment views if not already viewed
+            if ($request->filled('id')) {
+                $bookItem = $query->where('id', $getById)->first();
+
+                if ($bookItem) {
+                    if (!session()->has('viewed_book_' . $getRead)) {
+                        // Increment the views count if the book hasn't been viewed before in this session
+                        $bookItem->increment('views');
+                        session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
+                    }
+                }
             }
 
-            // Step 8: Handle pagination
-            if ($paginate === "true") {
+            // Step 9: Paginate or limit the results
+            if ($request->filled('paginate') && $paginate == "true") {
                 $setPaginate = true;
                 $result = $query->paginate($limit);
             } else {
@@ -115,172 +128,201 @@ class BookRepository implements BookInterface
                 $result = $query->limit($limit)->get();
             }
 
-            // Step 9: Modify query result (if needed)
+            // Step 10: Modify the result (optional)
             $datas = Self::queryGetModify($result, $setPaginate, true);
 
-            // Step 10: Cache the result for later use
+            // Step 11: Cache the results in Redis
             Redis::set($key, json_encode($datas));
-            Redis::expire($key, $this->expired);
+            Redis::expire($key,  $this->expired);
 
-            // Step 11: Return success response
-            return $this->success("List Berita By {$params}", $datas);
+            return $this->success("List Book By {$params}", $datas);
         } catch (\Exception $e) {
-            // Handle exceptions and return error response
-            return $this->error("Internal Server Error: " . $e->getMessage(), "");
+            return $this->error("Internal Server Error!" . $e->getMessage(), "");
         }
     }
 
 
     public function save($request)
     {
+        // Step 1: Validation
         $validator = Validator::make($request->all(), [
-            'berita_title'     => 'required',
-            'description'     => 'required',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072',
-            'file'           => 'mimes:pdf|max:10240',
-            'category_id'  => 'required',
-            'posted_at' => 'required',
-            'topic_id' => 'required|array', // Array of topic IDs
+            'title' => 'required|string',
+            'description' => 'nullable|string',
+            'cover' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'file' => 'nullable|mimes:pdf|max:10240',
+            'ctg_book_id' => 'required|exists:ctg_book,id',
+            'topics' => 'required|array', // Ensure 'topics' is an array
+            'topics.*' => 'exists:topics,id', // Validate that each topic ID exists
+            'posted_at' => 'required|date_format:d-m-Y',
         ]);
+
+        // Check if validation fails
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
 
         try {
-            $category_id = Ctg_Book::find($request->category_id);
-            // check
-            if (!$category_id) {
-                return $this->error("Not Found", "Category Buku dengan ID = ($request->category_id) tidak ditemukan!", 404);
+            // Step 2: Check if category exists
+            $ctg_book = Ctg_Book::find($request->ctg_book_id);
+            if (!$ctg_book) {
+                return $this->error("Not Found", "Category Book dengan ID = ($request->ctg_book_id) tidak ditemukan!", 404);
             }
 
+            // Step 3: Handle file upload for cover
+            $fileNameCover = '';
+            if ($request->hasFile('cover')) {
+                $fileNameCover = "book_cover_" . time() . "-" . Str::slug($request->cover->getClientOriginalName()) . "." . $request->cover->getClientOriginalExtension();
+                // Save the cover image to the specified directory
+                Helper::saveImage('cover', $fileNameCover, $request, $this->destinationImage);
+            }
 
-            $fileName = $request->hasFile('file') ? "books_" . time() . "-" . Str::slug($request->file->getClientOriginalName()) . "." . $request->file->getClientOriginalExtension() : "";
-            $coverName = $request->hasFile('cover') ? "books_" . time() . "-" . Str::slug($request->cover->getClientOriginalName()) . "." . $request->cover->getClientOriginalExtension() : "";
+            // Step 4: Handle file upload for document
+            $fileNameFile = '';
+            $formattedSize = '';
+            if ($request->hasFile('file')) {
+                $fileNameFile = "book_file_" . time() . "-" . Str::slug($request->file->getClientOriginalName()) . "." . $request->file->getClientOriginalExtension();
+                // Save the file document to the specified directory
+                Helper::saveFile('file', $fileNameFile, $request, $this->destinationFile);
+                $fileSize = $request->file->getSize();
+                // Format file size to be human-readable
+                $formattedSize = $this->formatSize($fileSize);
+            }
 
+            // Step 5: Prepare data for book creation
             $data = [
                 'title' => $request->title,
                 'description' => $request->description,
-                'file' => $fileName,
-                'cover' => $coverName,
+                'cover' => $fileNameCover,
+                'file' => $fileNameFile,
+                'file_size' => $formattedSize,
+                'file_link' => $request->file_link,
                 'slug' => Str::slug($request->title),
-                'category_book_id' => $request->category_id,
-                // 'topic_id' => json_encode($request->topic_id),
-                'user_id' => Auth::user()->id,
+                'ctg_book_id' => $request->ctg_book_id,
                 'created_by' => Auth::user()->id,
                 'posted_at' => Carbon::createFromFormat('d-m-Y', $request->posted_at)
-
             ];
 
-            // Create Berita
-            $add = Book::create($data);
-            // Step 3: Get the array of topic IDs (you can change this based on the request)
-            $topicIds = $request->topic_id; // Assume $request->topic_id is an array of topic IDs
+            // Step 6: Create the book record
+            $book = Book::create($data);
 
-            // Step 4: Attach the topics to the book using the sync method
-            $add->topics()->sync($topicIds); // This will insert the relationships into the pivot table
-
-
-            if ($add) {
-
-                // Storage::disk(['public' => 'books'])->put($fileName, file_get_contents($request->image));
-                // Save Image in Storage folder books
-                Helper::saveImage('cover', $fileName, $request, $this->destinationImage);
-                Helper::saveFile('file', $fileName, $request, $this->destinationFile);
-
-
-
-                // delete Redis when insert data
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-
-                return $this->success("Berita Berhasil ditambahkan!", $data,);
+            // Step 7: Attach topics to the book
+            if ($request->has('topics') && is_array($request->topics)) {
+                $topics = $request->topics; // Already validated as an array
+                $book->topics()->attach($topics); // Attach topics to the pivot table
             }
 
-            return $this->error("FAILED", "Berita gagal ditambahkan!", 400);
+            // Step 8: Check if the book was created successfully
+            if ($book) {
+                // Clear Redis cache after insertion
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Return success response
+                return $this->success("Book Berhasil ditambahkan!", $data);
+            }
+
+            // Return failure response if creation fails
+            return $this->error("FAILED", "Book gagal ditambahkan!", 400);
         } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Handle any unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
 
     public function update($request, $id)
     {
+        // Step 1: Validate the request
         $validator = Validator::make($request->all(), [
-            'berita_title'     => 'required',
-            'description'     => 'required',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072',
-            'category_id'  => 'required',
-            'posted_at'  => 'required',
+            'title' => 'required|string',
+            'description' => 'string',
+            'cover' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
+            'file' => 'nullable|mimes:pdf|max:10240',
+            'ctg_book_id' => 'required|exists:ctg_book,id',
+            'topics' => 'required|array',              // Ensure topics is an array
+            'topics.*' => 'exists:topics,id',          // Validate each topic ID
+            'posted_at' => 'required|date_format:d-m-Y',
         ]);
+
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
-            // return response()->json($validator->errors(), 422);
         }
+
         try {
-            $category_id = Ctg_Book::find($request->category_id);
-            // check
-            if (!$category_id) {
-                return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
-            }
-            // search
-            $datas = Book::findOrFail($id);
-            // check
-            if (!$datas) {
-                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
+            // Step 2: Check if the category exists
+            $ctg_book = Ctg_Book::find($request->ctg_book_id);
+            if (!$ctg_book) {
+                return $this->error("Not Found", "Category Book dengan ID = ($request->ctg_book_id) tidak ditemukan!", 404);
             }
 
-            if ($request->filled('event_id') && $request->event_id !== "") {
-                $event_id = Event_Program::find($request->event_id);
-                // check
-                if (!$event_id) {
-                    return $this->error("Not Found", "Event dengan ID = ($request->event_id) tidak ditemukan!", 404);
-                }
-            }
-            $datas['berita_title'] = $request->berita_title;
-            $datas['description'] = $request->description;
-            $datas['slug'] = Str::slug($request->berita_title);
-            $datas['views'] = $datas->views;
-            $datas['category_id'] = $request->category_id;
-            $datas['event_id'] = $request->event_id;
-            $datas['user_id'] = Auth::user()->id;
-            $datas['edited_by'] = Auth::user()->id;
-            $datas['posted_at'] = Carbon::createFromFormat('d-m-Y', $request->posted_at);
-
-            if ($request->hasFile('image')) {
-                // Old iamge delete
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image);
-
-                // Image name
-                $fileName = 'books_' . time() . "-" . Str::slug($request->image->getClientOriginalName()) . "." . $request->image->getClientOriginalExtension();
-                $datas['image'] = $fileName;
-
-                // Image save in public folder
-                Helper::saveImage('image', $fileName, $request, $this->destinationImage);
-            } else {
-                if ($request->delete_image) {
-                    // Old image delete
-                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image);
-
-                    $datas['image'] = null;
-                }
-                $datas['image'] = $datas->image;
+            // Step 3: Find the book record by ID
+            $book = Book::find($id);
+            if (!$book) {
+                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            // Step 5: Sync the topics if topic IDs are provided in the request
-            if ($request->has('topic_id') && is_array($request->topic_id)) {
-                $datas->topics()->sync($request->topic_id); // This will update the pivot table
+            // Step 4: Update book fields
+            $book->title = $request->title;
+            $book->description = $request->description;
+            $book->slug = Str::slug($request->title);
+            $book->file_link = $request->file_link;
+            $book->ctg_book_id = $request->ctg_book_id;
+            $book->edited_by = Auth::user()->id;
+            $book->posted_at = Carbon::createFromFormat('d-m-Y', $request->posted_at);
+
+            // Step 5: Handle cover image upload or deletion
+            if ($request->hasFile('cover')) {
+                // Delete old cover image if there's a new one
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $book->cover);
+
+                // Generate new file name and update the cover field
+                $fileNameCover = 'book_cover_' . time() . '-' . Str::slug($request->cover->getClientOriginalName()) . '.' . $request->cover->getClientOriginalExtension();
+                $book->cover = $fileNameCover;
+
+                // Save the new cover image
+                Helper::saveImage('cover', $fileNameCover, $request, $this->destinationImage);
+            } elseif ($request->delete_cover) {
+                // Delete cover image if delete_cover flag is set
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $book->cover);
+                $book->cover = null;
             }
 
+            // Step 6: Handle file document upload or deletion
+            if ($request->hasFile('file')) {
+                // Delete old file document if there's a new one
+                Helper::deleteFile($this->destinationFile, $book->file);
 
-            // update datas
-            if ($datas->save()) {
-                // delete Redis when insert data
+                // Generate new file name and update the file field
+                $fileNameFile = 'book_file_' . time() . '-' . Str::slug($request->file->getClientOriginalName()) . '.' . $request->file->getClientOriginalExtension();
+                $book->file = $fileNameFile;
+
+                // Save the new file document
+                Helper::saveFile('file', $fileNameFile, $request, $this->destinationFile);
+
+                // Calculate and format file size
+                $fileSize = $request->file->getSize();
+                $book->file_size = $this->formatSize($fileSize);
+            } elseif ($request->delete_file) {
+                // Delete file document if delete_file flag is set
+                Helper::deleteFile($this->destinationFile, $book->file);
+                $book->file = null;
+                $book->file_size = null;
+            }
+
+            // Step 7: Sync the topics if topic IDs are provided
+            if ($request->has('topics') && is_array($request->topics)) {
+                $book->topics()->sync($request->topics); // This will update the pivot table
+            }
+
+            // Step 8: Save the updated book record
+            if ($book->save()) {
+                // Step 9: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
 
-                return $this->success("Berita Berhasil diperbaharui!", $datas);
+                return $this->success("Book Berhasil diperbaharui!", $book);
             }
-            return $this->error("FAILED", "Berita gagal diperbaharui!", 400);
-        } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+
+            return $this->error("FAILED", "Book gagal diperbaharui!", 400);
+        } catch (\Exception $e) {
+            // Step 10: Handle any unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -288,20 +330,28 @@ class BookRepository implements BookInterface
     public function delete($id)
     {
         try {
-            // search
+            // Step 1: Find the book by ID
             $data = Book::find($id);
             if (empty($data)) {
-                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
-            }
-            // approved
-            if ($data->delete()) {
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus!");
+                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            return $this->error("FAILED", "Berita dengan ID = ($id) gagal dihapus!", 400);
+            // Step 2: Attempt to delete the book
+            if ($data->delete()) {
+                // Step 3: Clear related Redis cache after successful deletion
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Step 4: Return success response
+                return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dihapus!");
+            }
+
+            // Step 5: If deletion fails, return an error response
+            return $this->error("FAILED", "Book dengan ID = ($id) gagal dihapus!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 6: Log the error for debugging purposes
+            Log::error("Error deleting berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 7: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -309,25 +359,41 @@ class BookRepository implements BookInterface
     public function deletePermanent($id)
     {
         try {
-
+            // Step 1: Find the trashed book item by ID
             $data = Book::onlyTrashed()->find($id);
+
+            // Step 2: If the record is not found, return a 404 error
             if (!$data) {
-                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
+                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
 
-                // approved
-            ;
+            // Step 3: Permanently delete the book item
             if ($data->forceDelete()) {
                 // Detach topics from the book (this will remove the related records from the pivot table)
                 $data->topics()->detach();
-                // Old image delete
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image);
+                // Step 4: Delete the associated image if available
+                if ($data->cover) {
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->cover);
+                }
+                if ($data->file) {
+                    Helper::deleteFile($this->destinationFile, $data->file);
+                }
+
+
+                // Step 5: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus permanen!");
+
+                // Step 6: Return success response after deletion
+                return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dihapus permanen!");
             }
-            return $this->error("FAILED", "Berita dengan ID = ($id) Gagal dihapus permanen!", 400);
+
+            // Step 7: If deletion fails, return an error response
+            return $this->error("FAILED", "Book dengan ID = ($id) Gagal dihapus permanen!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 8: Log the error for debugging purposes
+            Log::error("Error permanently deleting berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 9: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -335,14 +401,31 @@ class BookRepository implements BookInterface
     public function restore()
     {
         try {
-            $data = Book::onlyTrashed();
-            if ($data->restore()) {
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Restore Berita Berhasil!");
+            // Get all trashed records
+            $data = Book::onlyTrashed()->get();
+
+            // Check if there are any trashed records to restore
+            if ($data->isEmpty()) {
+                return $this->error("Not Found", "Tidak ada Book yang ada di sampah untuk dipulihkan!", 404);
             }
-            return $this->error("FAILED", "Restore Berita Gagal!", 400);
+
+            // Restore all trashed records
+            $restored = $data->restore();
+
+            // Check if restore was successful
+            if ($restored) {
+                // Clear Redis cache after successful restore
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Return success response
+                return $this->success("COMPLETED", "Semua Book di sampah telah berhasil dipulihkan!");
+            }
+
+            // If restore failed, return an error response
+            return $this->error("FAILED", "Restore Book gagal!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Log error and return an internal server error response
+            Log::error("Error restoring all trashed berita: " . $e->getMessage(), ['exception' => $e]);
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -350,34 +433,50 @@ class BookRepository implements BookInterface
     public function restoreById($id)
     {
         try {
-            $data = Book::onlyTrashed()->where('id', $id);
-            if ($data->restore()) {
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Restore Berita dengan ID = ($id) Berhasil!");
+            // Step 1: Find the trashed book item by ID
+            $data = Book::onlyTrashed()->where('id', $id)->first();
+
+            // Step 2: If the record is not found, return a 404 error
+            if (!$data) {
+                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
-            return $this->error("FAILED", "Restore Berita dengan ID = ($id) Gagal!", 400);
+
+            // Step 3: Restore the trashed book item
+            if ($data->restore()) {
+                // Step 4: Clear related Redis cache after successful restore
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Step 5: Return success response after restoration
+                return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dipulihkan!");
+            }
+
+            // Step 6: If restoration fails, return an error response
+            return $this->error("FAILED", "Restore Book dengan ID = ($id) Gagal!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 7: Log the error for debugging purposes
+            Log::error("Error restoring berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 8: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
 
-    function addViews($id_berita)
-    {
-        $datas = Book::find($id_berita);
-        $datas['views'] = $datas->views + 1;
-        return $datas->save();
-    }
+    // function addViews($id_berita)
+    // {
+    //     $datas = Book::find($id_berita);
+    //     $datas['views'] = $datas->views + 1;
+    //     return $datas->save();
+    // }
 
     // function query($kondisi = "posted_at")
     // {
     //     return Book::latest($kondisi == "views" ? 'views' : 'posted_at')
-    //         ->select(['books.*']);
+    //         ->select(['book.*']);
     // }
 
     function queryGetCategory($id)
     {
-        return Ctg_Book::find($id);
+        return ctg_book::find($id);
     }
 
 
@@ -404,12 +503,12 @@ class BookRepository implements BookInterface
     function modifyData($item)
     {
 
-        // $category_id = [
-        //     'id' => $item['category_id'],
-        //     'name' => self::queryGetCategory($item['category_id'])->title_category,
-        //     'slug' => self::queryGetCategory($item['category_id'])->slug,
+        // $ctg_book_id = [
+        //     'id' => $item['ctg_book_id'],
+        //     'name' => self::queryGetCategory($item['ctg_book_id'])->title_category,
+        //     'slug' => self::queryGetCategory($item['ctg_book_id'])->slug,
         // ];
-        // $item->category_id = $category_id;
+        // $item->ctg_book_id = $ctg_book_id;
 
         // $user_id = [
         //     'name' => Helper::queryGetUser($item['user_id']),
@@ -427,5 +526,12 @@ class BookRepository implements BookInterface
     function checkLogin()
     {
         return !Auth::check() ? "-public-" : "-admin-";
+    }
+
+    private function formatSize($bytes)
+    {
+        $sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        $factor = floor((strlen($bytes) - 1) / 3);
+        return sprintf("%.2f", $bytes / pow(1024, $factor)) . " " . $sizes[$factor];
     }
 }

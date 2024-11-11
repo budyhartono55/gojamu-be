@@ -15,16 +15,20 @@ return new class extends Migration
     {
         Schema::create('book', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("title");
+            $table->text("title");
+            $table->text("slug");
+            $table->text("description")->nullable();
             $table->text("file")->nullable();
-            $table->string("file_size");
+            $table->text("file_link")->nullable();
+            $table->string("file_size")->nullable();
             $table->text("cover")->nullable();
             $table->date("posted_at");
             $table->string("ctg_book_id");
-            // $table->string("topic_id");
+            $table->integer("views")->default(0);
             $table->string('created_by')->nullable();
             $table->string('edited_by')->nullable();
             $table->timestamps();
+            $table->softDeletes();
 
             $table->foreign('ctg_book_id')->references('id')->on('ctg_book');
             // $table->foreign('topic_id')->references('id')->on('topic');

@@ -3,19 +3,17 @@
 namespace App\Repositories\News;
 
 use App\Helpers\Helper;
-use App\Models\ctg_news;
-use App\Models\Event_Program;
+use App\Models\Ctg_News;
 use App\Models\News;
-use App\Models\User;
 use App\Repositories\News\NewsInterface;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Exception;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Log;
 
 class NewsRepository implements NewsInterface
 {
@@ -35,7 +33,6 @@ class NewsRepository implements NewsInterface
     public function getNews($request)
     {
         try {
-
             // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request);
 
@@ -51,84 +48,68 @@ class NewsRepository implements NewsInterface
             $getEvent = $request->event;
             $page = $request->page;
             $paginate = $request->paginate;
-            $clientIpAddress = $request->getClientIp();
+            // $clientIpAddress = $request->getClientIp();
 
             $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
-            $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . $clientIpAddress . "#params" . $params;
+            $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . "#params" . $params;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("List Berita By {$params} from (CACHE)", $result);
             }
 
+            // Step 3: Set the query based on trash filter
             if ($request->filled('trash') && $request->trash == "true") {
-                $query = News::onlyTrashed()->with(['event', 'categories'])->orderBy('posted_at', $order);
-                // $query = News::onlyTrashed()
-                //     ->join('category_news', 'category_news.id', '=', 'news.category_id')
-                //     ->select(['news.*']);
+                $query = News::onlyTrashed()->with(['ctg_news'])->orderBy('posted_at', $order);
             } else {
-                $query = News::with(['event', 'categories'])->orderBy('posted_at', $order);
-
-
-                // $query = News::join('category_news', 'category_news.id', '=', 'news.category_id')
-                //     ->select(['news.*']);
+                $query = News::with(['ctg_news'])->orderBy('posted_at', $order);
             }
 
-            if ($request->filled('event') && $request->event !== "") {
-                $query->whereHas('event', function ($queryEvent) use ($request) {
-                    return $queryEvent->where('slug', Str::slug($request->event));
-                });
-                // $query->where('event.slug',  $getEvent);
-            }
-
-
+            // Step 4: Apply search filter
             if ($request->filled('search')) {
                 $query->where('berita_title', 'LIKE', '%' . $getSearch . '%');
             }
 
+            // Step 5: Apply category filter
             if ($request->filled('category')) {
                 $query->whereHas('categories', function ($queryCategory) use ($request) {
                     return $queryCategory->where('slug', Str::slug($request->category));
                 });
-                // return self::getByCategory($getByCategory, $order, $limit);
-                // $query->where(['category_news.slug' => $getByCategory]);
             }
 
+            // Step 6: Apply custom filter for sorting
             if ($request->filled('filter')) {
-                $filter = $getByFilter == "top" ? 'views'  : 'posted_at';
+                $filter = $getByFilter == "top" ? 'views' : 'posted_at';
                 $query->orderBy($filter, $order);
-
-                // return self::getAllBy($getByFilter, $order, $limit);
             }
 
+            // Step 7: Apply read filter and increment views if not already viewed
             if ($request->filled('read')) {
-                $query->where('slug', $getRead);
+                $newsItem = $query->where('slug', $getRead)->first();
 
-                if ($query->first()) {
-                    // $query->incrementViews();
-                    // Check if the user has already viewed this book in the current session or IP
+                if ($newsItem) {
                     if (!session()->has('viewed_book_' . $getRead)) {
                         // Increment the views count if the book hasn't been viewed before in this session
-                        $query->incrementViews();
+                        $newsItem->increment('views');
                         session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
                     }
-
-                    // $this->addViews($query->first()->id);
                 }
             }
 
+            // Step 8: Apply id filter and increment views if not already viewed
             if ($request->filled('id')) {
-                $query->where('id', $getById);
-                if (!session()->has('viewed_book_' . $getRead)) {
-                    // Increment the views count if the book hasn't been viewed before in this session
-                    $query->incrementViews();
-                    session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
-                }
+                $newsItem = $query->where('id', $getById)->first();
 
-                // return self::getById($getById);
+                if ($newsItem) {
+                    if (!session()->has('viewed_book_' . $getRead)) {
+                        // Increment the views count if the book hasn't been viewed before in this session
+                        $newsItem->increment('views');
+                        session()->put('viewed_book_' . $getRead, true);  // Mark the book as viewed
+                    }
+                }
             }
 
-
+            // Step 9: Paginate or limit the results
             if ($request->filled('paginate') && $paginate == "true") {
                 $setPaginate = true;
                 $result = $query->paginate($limit);
@@ -137,158 +118,145 @@ class NewsRepository implements NewsInterface
                 $result = $query->limit($limit)->get();
             }
 
+            // Step 10: Modify the result (optional)
             $datas = Self::queryGetModify($result, $setPaginate, true);
-            // if (!empty($datas)) {
-            //     if (!Auth::check()) {
-            //         $hidden = ['id'];
-            //         $datas->makeHidden($hidden);
-            //     }
+
+            // Step 11: Cache the results in Redis
             Redis::set($key, json_encode($datas));
             Redis::expire($key,  $this->expired);
+
             return $this->success("List Berita By {$params}", $datas);
-            // }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error!" . $e->getMessage(), "");
         }
-        // }
     }
 
 
     public function save($request)
     {
+        // Step 1: Validation
         $validator = Validator::make($request->all(), [
-            'berita_title'     => 'required',
-            'description'     => 'required',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072',
-            'category_id'  => 'required',
-            'posted_at' => 'required'
+            'berita_title' => 'required|string',
+            'description'  => 'required|string',
+            'image'         => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:3072',
+            'ctg_news_id'   => 'required|exists:ctg_news,id',
+            'posted_at'     => 'required|date_format:d-m-Y'
         ]);
+
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
 
         try {
-            $category_id = ctg_news::find($request->category_id);
-            // check
-            if (!$category_id) {
-                return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
+            // Step 2: Check if category exists
+            $ctg_news_id = Ctg_News::find($request->ctg_news_id);
+            if (!$ctg_news_id) {
+                return $this->error("Not Found", "Category Berita dengan ID = ($request->ctg_news_id) tidak ditemukan!", 404);
             }
 
-            if ($request->filled('event_id') && $request->event_id !== "") {
-                $event_id = Event_Program::find($request->event_id);
-                // check
-                if (!$event_id) {
-                    return $this->error("Not Found", "Event dengan ID = ($request->event_id) tidak ditemukan!", 404);
-                }
+            // Step 3: Handle file upload
+            $fileName = '';
+            if ($request->hasFile('image')) {
+                $fileName = "news_" . time() . "-" . Str::slug($request->image->getClientOriginalName()) . "." . $request->image->getClientOriginalExtension();
+                // Save image in storage
+                Helper::saveImage('image', $fileName, $request, $this->destinationImage);
             }
 
-            $fileName = $request->hasFile('image') ? "news_" . time() . "-" . Str::slug($request->image->getClientOriginalName()) . "." . $request->image->getClientOriginalExtension() : "";
-
+            // Step 4: Prepare data
             $data = [
                 'berita_title' => $request->berita_title,
-                'description' => $request->description,
-                'image' => $fileName,
-                'slug' => Str::slug($request->berita_title),
-                'category_id' => $request->category_id,
-                'event_id' => $request->filled('event_id') ? $request->event_id : null,
-                'user_id' => Auth::user()->id,
-                'created_by' => Auth::user()->id,
-                'posted_at' => Carbon::createFromFormat('d-m-Y', $request->posted_at)
-
+                'description'  => $request->description,
+                'image'         => $fileName,
+                'slug'          => Str::slug($request->berita_title),
+                'ctg_news_id'   => $request->ctg_news_id,
+                'user_id'       => Auth::user()->id,
+                'created_by'    => Auth::user()->id,
+                'posted_at'     => Carbon::createFromFormat('d-m-Y', $request->posted_at)
             ];
-            // Create Berita
+
+            // Step 5: Create Berita (news)
             $add = News::create($data);
 
             if ($add) {
-                // Storage::disk(['public' => 'news'])->put($fileName, file_get_contents($request->image));
-                // Save Image in Storage folder news
-                Helper::saveImage('image', $fileName, $request, $this->destinationImage);
-                // delete Redis when insert data
+                // Step 6: Clear Redis cache after insertion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
 
-                return $this->success("Berita Berhasil ditambahkan!", $data,);
+                return $this->success("Berita Berhasil ditambahkan!", $data);
             }
 
             return $this->error("FAILED", "Berita gagal ditambahkan!", 400);
         } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 7: Handle unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
 
     public function update($request, $id)
     {
+        // Step 1: Validate the request
         $validator = Validator::make($request->all(), [
-            'berita_title'     => 'required',
-            'description'     => 'required',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072',
-            'category_id'  => 'required',
-            'posted_at'  => 'required',
+            'berita_title' => 'required|string',
+            'description'  => 'required|string',
+            'image'         => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:3072',
+            'ctg_news_id'   => 'required|exists:ctg_news,id',
+            'posted_at'     => 'required|date_format:d-m-Y',
         ]);
+
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
-            // return response()->json($validator->errors(), 422);
         }
+
         try {
-            $category_id = ctg_news::find($request->category_id);
-            // check
-            if (!$category_id) {
-                return $this->error("Not Found", "Category Berita dengan ID = ($request->category_id) tidak ditemukan!", 404);
+            // Step 2: Check if the category exists
+            $ctg_news_id = Ctg_News::find($request->ctg_news_id);
+            if (!$ctg_news_id) {
+                return $this->error("Not Found", "Category Berita dengan ID = ($request->ctg_news_id) tidak ditemukan!", 404);
             }
-            // search
+
+            // Step 3: Find the news record by ID
             $datas = News::find($id);
-            // check
             if (!$datas) {
                 return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            if ($request->filled('event_id') && $request->event_id !== "") {
-                $event_id = Event_Program::find($request->event_id);
-                // check
-                if (!$event_id) {
-                    return $this->error("Not Found", "Event dengan ID = ($request->event_id) tidak ditemukan!", 404);
-                }
-            }
-            $datas['berita_title'] = $request->berita_title;
-            $datas['description'] = $request->description;
-            $datas['slug'] = Str::slug($request->berita_title);
-            $datas['views'] = $datas->views;
-            $datas['category_id'] = $request->category_id;
-            $datas['event_id'] = $request->event_id;
-            $datas['user_id'] = Auth::user()->id;
-            $datas['edited_by'] = Auth::user()->id;
-            $datas['posted_at'] = Carbon::createFromFormat('d-m-Y', $request->posted_at);
+            // Step 4: Update news fields
+            $datas->berita_title = $request->berita_title;
+            $datas->description = $request->description;
+            $datas->slug = Str::slug($request->berita_title);
+            $datas->views = $datas->views;  // Keeping the views count intact
+            $datas->ctg_news_id = $request->ctg_news_id;
+            $datas->user_id = Auth::user()->id;
+            $datas->edited_by = Auth::user()->id;
+            $datas->posted_at = Carbon::createFromFormat('d-m-Y', $request->posted_at);
 
+            // Step 5: Handle image upload or deletion
             if ($request->hasFile('image')) {
-                // Old iamge delete
+                // Delete old image if there's a new one
                 Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image);
 
-                // Image name
+                // Generate new file name and update the image field
                 $fileName = 'news_' . time() . "-" . Str::slug($request->image->getClientOriginalName()) . "." . $request->image->getClientOriginalExtension();
-                $datas['image'] = $fileName;
+                $datas->image = $fileName;
 
-                // Image save in public folder
+                // Save the new image to public storage
                 Helper::saveImage('image', $fileName, $request, $this->destinationImage);
-            } else {
-                if ($request->delete_image) {
-                    // Old image delete
-                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image);
-
-                    $datas['image'] = null;
-                }
-                $datas['image'] = $datas->image;
+            } elseif ($request->delete_image) {
+                // Delete image if the delete_image flag is set
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image);
+                $datas->image = null;
             }
 
-            // update datas
+            // Step 6: Save the updated news record
             if ($datas->save()) {
-                // delete Redis when insert data
+                // Step 7: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
 
                 return $this->success("Berita Berhasil diperbaharui!", $datas);
             }
+
             return $this->error("FAILED", "Berita gagal diperbaharui!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Handle any unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -296,20 +264,28 @@ class NewsRepository implements NewsInterface
     public function delete($id)
     {
         try {
-            // search
+            // Step 1: Find the news by ID
             $data = News::find($id);
             if (empty($data)) {
                 return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
             }
-            // approved
+
+            // Step 2: Attempt to delete the news
             if ($data->delete()) {
+                // Step 3: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Step 4: Return success response
                 return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus!");
             }
 
+            // Step 5: If deletion fails, return an error response
             return $this->error("FAILED", "Berita dengan ID = ($id) gagal dihapus!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 6: Log the error for debugging purposes
+            Log::error("Error deleting berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 7: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -317,23 +293,35 @@ class NewsRepository implements NewsInterface
     public function deletePermanent($id)
     {
         try {
-
+            // Step 1: Find the trashed news item by ID
             $data = News::onlyTrashed()->find($id);
+
+            // Step 2: If the record is not found, return a 404 error
             if (!$data) {
-                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan!", 404);
+                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
 
-                // approved
-            ;
+            // Step 3: Permanently delete the news item
             if ($data->forceDelete()) {
-                // Old image delete
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image);
+                // Step 4: Delete the associated image if available
+                if ($data->image) {
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image);
+                }
+
+                // Step 5: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Step 6: Return success response after deletion
                 return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus permanen!");
             }
+
+            // Step 7: If deletion fails, return an error response
             return $this->error("FAILED", "Berita dengan ID = ($id) Gagal dihapus permanen!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 8: Log the error for debugging purposes
+            Log::error("Error permanently deleting berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 9: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -341,14 +329,31 @@ class NewsRepository implements NewsInterface
     public function restore()
     {
         try {
-            $data = News::onlyTrashed();
-            if ($data->restore()) {
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Restore Berita Berhasil!");
+            // Get all trashed records
+            $data = News::onlyTrashed()->get();
+
+            // Check if there are any trashed records to restore
+            if ($data->isEmpty()) {
+                return $this->error("Not Found", "Tidak ada Berita yang ada di sampah untuk dipulihkan!", 404);
             }
-            return $this->error("FAILED", "Restore Berita Gagal!", 400);
+
+            // Restore all trashed records
+            $restored = $data->restore();
+
+            // Check if restore was successful
+            if ($restored) {
+                // Clear Redis cache after successful restore
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Return success response
+                return $this->success("COMPLETED", "Semua Berita di sampah telah berhasil dipulihkan!");
+            }
+
+            // If restore failed, return an error response
+            return $this->error("FAILED", "Restore Berita gagal!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Log error and return an internal server error response
+            Log::error("Error restoring all trashed berita: " . $e->getMessage(), ['exception' => $e]);
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
@@ -356,24 +361,40 @@ class NewsRepository implements NewsInterface
     public function restoreById($id)
     {
         try {
-            $data = News::onlyTrashed()->where('id', $id);
-            if ($data->restore()) {
-                Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("COMPLETED", "Restore Berita dengan ID = ($id) Berhasil!");
+            // Step 1: Find the trashed news item by ID
+            $data = News::onlyTrashed()->where('id', $id)->first();
+
+            // Step 2: If the record is not found, return a 404 error
+            if (!$data) {
+                return $this->error("Not Found", "Berita dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
+
+            // Step 3: Restore the trashed news item
+            if ($data->restore()) {
+                // Step 4: Clear related Redis cache after successful restore
+                Helper::deleteRedis($this->generalRedisKeys . "*");
+
+                // Step 5: Return success response after restoration
+                return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dipulihkan!");
+            }
+
+            // Step 6: If restoration fails, return an error response
             return $this->error("FAILED", "Restore Berita dengan ID = ($id) Gagal!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
+            // Step 7: Log the error for debugging purposes
+            Log::error("Error restoring berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+
+            // Step 8: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
 
-    function addViews($id_berita)
-    {
-        $datas = News::find($id_berita);
-        $datas['views'] = $datas->views + 1;
-        return $datas->save();
-    }
+    // function addViews($id_berita)
+    // {
+    //     $datas = News::find($id_berita);
+    //     $datas['views'] = $datas->views + 1;
+    //     return $datas->save();
+    // }
 
     // function query($kondisi = "posted_at")
     // {
@@ -410,12 +431,12 @@ class NewsRepository implements NewsInterface
     function modifyData($item)
     {
 
-        // $category_id = [
-        //     'id' => $item['category_id'],
-        //     'name' => self::queryGetCategory($item['category_id'])->title_category,
-        //     'slug' => self::queryGetCategory($item['category_id'])->slug,
+        // $ctg_news_id = [
+        //     'id' => $item['ctg_news_id'],
+        //     'name' => self::queryGetCategory($item['ctg_news_id'])->title_category,
+        //     'slug' => self::queryGetCategory($item['ctg_news_id'])->slug,
         // ];
-        // $item->category_id = $category_id;
+        // $item->ctg_news_id = $ctg_news_id;
 
         // $user_id = [
         //     'name' => Helper::queryGetUser($item['user_id']),

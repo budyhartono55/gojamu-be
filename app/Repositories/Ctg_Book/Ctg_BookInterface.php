@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Repositories\Ctg_News;
+namespace App\Repositories\Ctg_Book;
 
-interface CtgNewsInterface
+interface Ctg_BookInterface
 {
     // getAll
     public function getAllCategories($request);

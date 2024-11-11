@@ -4,7 +4,6 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\CategoryNewsController;
 use App\Http\Controllers\Api\Ctg_BookController;
 use App\Http\Controllers\Api\SettingController;
 use App\Http\Controllers\Api\NewsController;
@@ -13,12 +12,14 @@ use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
+use App\Http\Controllers\Api\Ctg_NewsController;
 use App\Http\Controllers\Api\GalleryController;
+use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
 use App\Http\Controllers\Api\Wilayah\KabupatenController;
 use App\Http\Controllers\Api\Wilayah\KecamatanController;
 use App\Http\Controllers\Api\Wilayah\ProvinsiController;
-use App\Models\Achievement;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -100,6 +101,19 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE PERMANENT
     Route::delete("/news/permanent/{id}", [NewsController::class, "deletePermanent"])->name("deleteNewsPermanent");
 
+
+    // =======================================================================================================
+    // C A T E G O R Y  - N E W S
+    // //GET
+    Route::get("/ctg-news", [Ctg_NewsController::class, "index"])->name("ctg");
+    // Route::get("/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/ctg-news", [Ctg_NewsController::class, "add"])->name("createCategory");
+    // PATCH
+    Route::patch("/ctg-news/{id}", [Ctg_NewsController::class, "edit"])->name("editCategory");
+    // DELETE
+    Route::delete("/ctg-news/{id}", [Ctg_NewsController::class, "delete"])->name("deleteCategory");
+
     // =======================================================================================================
     // CTG_Service
     // //GET
@@ -169,17 +183,49 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/gallery/{id}", [GalleryController::class, "delete"])->name("deleteGallery");
 
+
     // =======================================================================================================
-    // C A T E G O R Y  - N E W S
-    // //GET
-    Route::get("/ctg-news", [CategoryNewsController::class, "index"])->name("ctg");
-    // Route::get("/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    // B O O K
+    // GET
+    Route::get('/book', [BookController::class, "getBook"])->name("book");
     // POST
-    Route::post("/ctg-news", [CategoryNewsController::class, "add"])->name("createCategory");
+    Route::post("/book", [BookController::class, "save"])->name("createBook");
+    Route::post("/book/restore", [BookController::class, "restore"])->name("restoreBook");
+    Route::post("/book/restore/{id}", [BookController::class, "restoreById"])->name("restoreByIdBook");
+
     // PATCH
-    Route::patch("/ctg-news/{id}", [CategoryNewsController::class, "edit"])->name("editCategory");
+    Route::patch("/book/{id}", [BookController::class, "update"])->name("editBook");
     // DELETE
-    Route::delete("/ctg-news/{id}", [CategoryNewsController::class, "delete"])->name("deleteCategory");
+    Route::delete("/book/{id}", [BookController::class, "delete"])->name("deleteBook");
+    // DELETE PERMANENT
+    Route::delete("/book/permanent/{id}", [BookController::class, "deletePermanent"])->name("deleteBookPermanent");
+
+
+    // =======================================================================================================
+    // C A T E G O R Y  - B O O K
+    // //GET
+    Route::get("/ctg-book", [Ctg_BookController::class, "index"])->name("ctg");
+    // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/ctg-book", [Ctg_BookController::class, "add"])->name("createCategory");
+    // PATCH
+    Route::patch("/ctg-book/{id}", [Ctg_BookController::class, "edit"])->name("editCategory");
+    // DELETE
+    Route::delete("/ctg-book/{id}", [Ctg_BookController::class, "delete"])->name("deleteCategory");
+
+
+
+    // =======================================================================================================
+    // T O P I C
+    // //GET
+    Route::get("/topic", [TopicController::class, "index"])->name("topic");
+    // Route::get("/topic/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/topic", [TopicController::class, "add"])->name("createTopic");
+    // PATCH
+    Route::patch("/topic/{id}", [TopicController::class, "edit"])->name("editTopic");
+    // DELETE
+    Route::delete("/topic/{id}", [TopicController::class, "delete"])->name("deleteTopic");
 
     // =======================================================================================================
 
@@ -240,7 +286,7 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
 
     // C A T E G O R Y N E W S
     // //GET
-    Route::get("/public/ctg-news", [CategoryNewsController::class, "index"])->name("ctg");
+    Route::get("/public/ctg-news", [Ctg_NewsController::class, "index"])->name("ctg");
     // Route::get("/public/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
 
 

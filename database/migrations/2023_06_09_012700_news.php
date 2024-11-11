@@ -23,7 +23,6 @@ return new class extends Migration
             $table->date("posted_at");
             $table->string("ctg_news_id");
             $table->string("user_id");
-            $table->string("event_id")->nullable();
             $table->string('created_by')->nullable();
             $table->string('edited_by')->nullable();
             $table->timestamps();

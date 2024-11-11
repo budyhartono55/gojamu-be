@@ -30,11 +30,6 @@ class News extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function event()
-    {
-        return $this->belongsTo(Event_Program::class, 'event_id');
-    }
-
     public function ctg_news()
     {
         return $this->belongsTo(Ctg_News::class, 'ctg_news_id');
@@ -49,11 +44,5 @@ class News extends Model
     public function editedBy()
     {
         return $this->belongsTo(User::class, 'edited_by');
-    }
-
-    public function incrementViews()
-    {
-        // Increment views count by 1
-        $this->increment('views');
     }
 }

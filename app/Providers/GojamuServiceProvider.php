@@ -25,8 +25,8 @@ class GojamuServiceProvider extends ServiceProvider
 
         // C A T E G O R Y N E W S================
         $this->app->bind(
-            'App\Repositories\CategoryNews\CategoryNewsInterface',
-            'App\Repositories\CategoryNews\CategoryNewsRepository'
+            'App\Repositories\Ctg_News\Ctg_NewsInterface',
+            'App\Repositories\Ctg_News\Ctg_NewsRepository'
         );
 
         // N E W S ================
@@ -34,6 +34,25 @@ class GojamuServiceProvider extends ServiceProvider
             'App\Repositories\News\NewsInterface',
             'App\Repositories\News\NewsRepository'
         );
+
+        // T O P I C  ================
+        $this->app->bind(
+            'App\Repositories\Topic\TopicInterface',
+            'App\Repositories\Topic\TopicRepository'
+        );
+
+        // B O O K   ================
+        $this->app->bind(
+            'App\Repositories\Book\BookInterface',
+            'App\Repositories\Book\BookRepository'
+        );
+
+        // C A T E G O R Y N E W S================
+        $this->app->bind(
+            'App\Repositories\Ctg_Book\Ctg_BookInterface',
+            'App\Repositories\Ctg_Book\Ctg_BookRepository'
+        );
+
 
         // A U T H ================
         $this->app->bind(
