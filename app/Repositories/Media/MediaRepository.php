@@ -75,16 +75,25 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Keseluruhan Konten/Media", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
                 ->latest('created_at')
                 ->paginate(12);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             if ($media) {
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['name']);
-                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
                     unset($item->createdBy, $item->editedBy, $item->ctgMedias);
@@ -252,12 +261,14 @@ class MediaRepository implements MediaInterface
                 $createdBy = User::select('name')->find($media->created_by);
                 $editedBy = User::select('name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
-                $topic = Topic::select('id', 'title', 'slug')->find($media->topic_id);
+                $topics = $media->topics()->select('id', 'title', 'slug')->get();
 
                 $media->created_by = optional($createdBy)->only(['name']);
                 $media->edited_by = optional($editedBy)->only(['name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
-                $media->topic_id = optional($topic)->only(['id', 'title', 'slug']);
+                $media->topics = $topics->map(function ($topic) {
+                    return $topic->only(['id', 'title', 'slug']);
+                });
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
@@ -321,6 +332,7 @@ class MediaRepository implements MediaInterface
             }
 
             $user = Auth::user();
+            $media->user_id = $user->id;
             $media->created_by = $user->id;
             $media->edited_by = $user->id;
 
@@ -392,6 +404,7 @@ class MediaRepository implements MediaInterface
                 }
             }
 
+            $media['user_id'] = $media->user_id;
             $media['created_by'] = $media->created_by;
             $media['edited_by'] = Auth::user()->id;
 
