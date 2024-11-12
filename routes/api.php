@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Ctg_ServiceController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\LikeController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
@@ -135,7 +136,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
     // =======================================================================================================
-    // Service
+    // Media
     // //GET
     Route::get("/media", [MediaController::class, "index"])->name("media");
     Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
@@ -145,7 +146,13 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
     // DELETE
     Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
+    // =======================================================================================================
 
+    // Like
+    // //GET
+    Route::get("/media/likes", [LikeController::class, "index"])->name("like");
+    // POST
+    Route::post("/media/like", [LikeController::class, "insert"])->name("createLike");
     // =======================================================================================================
     // CTG_GALLERY
     // //GET

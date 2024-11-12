@@ -60,6 +60,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Media::class, 'user_id', 'id');
     }
+    public function likedMedias()
+    {
+        return $this->belongsToMany(Media::class, 'like', 'user_id', 'media_id');
+    }
     public function favorites()
     {
         return $this->hasMany(Favorite::class, 'user_id', 'id');
