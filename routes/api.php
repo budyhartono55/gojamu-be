@@ -149,8 +149,6 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
 
     // Like
-    // //GET
-    Route::get("/media/likes", [LikeController::class, "index"])->name("like");
     // POST
     Route::post("/media/like", [LikeController::class, "insert"])->name("createLike");
     // =======================================================================================================

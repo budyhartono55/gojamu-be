@@ -17,11 +17,6 @@ class LikeController extends Controller
     }
 
     //M E T H O D E ======================
-    // core
-    public function index(Request $request)
-    {
-        return $this->likeRepository->getLikes($request);
-    }
     // create
     public function insert(Request $request)
     {

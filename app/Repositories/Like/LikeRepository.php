@@ -25,18 +25,6 @@ class LikeRepository implements LikeInterface
         $this->like = $like;
     }
 
-    public function getLikes($request)
-    {
-        try {
-            $user = Auth::user();
-            // $likedMedias = $user->likedMedias()->select('id', 'title_media', 'ytb_url')->get();
-
-            // return $this->success("List keseluruhan Konten/Media", $likedMedias);
-        } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
-        }
-    }
-
     // create
     public function toggleLike($request)
     {
