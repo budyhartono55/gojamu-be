@@ -5,6 +5,7 @@ namespace App\Repositories\Book;
 use App\Helpers\Helper;
 use App\Models\Ctg_Book;
 use App\Models\Book;
+use App\Models\Topic;
 use App\Repositories\Book\BookInterface;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Validator;
@@ -150,9 +151,8 @@ class BookRepository implements BookInterface
             'description' => 'nullable|string',
             'cover' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
             'file' => 'nullable|mimes:pdf|max:10240',
-            'ctg_book_id' => 'required|exists:ctg_book,id',
-            'topics' => 'required|array', // Ensure 'topics' is an array
-            'topics.*' => 'exists:topics,id', // Validate that each topic ID exists
+            'ctg_book_id' => 'required',
+            'topics' => 'required',
             'posted_at' => 'required|date_format:d-m-Y',
         ]);
 
@@ -166,6 +166,18 @@ class BookRepository implements BookInterface
             $ctg_book = Ctg_Book::find($request->ctg_book_id);
             if (!$ctg_book) {
                 return $this->error("Not Found", "Category Book dengan ID = ($request->ctg_book_id) tidak ditemukan!", 404);
+            }
+
+
+            // Step 1: Get the topic IDs from the request
+            $topicIds = explode(',', $request->topics);
+
+            // Step 2: Check if all the topic IDs exist in the database
+            $existingTopics = Topic::whereIn('id', $topicIds)->pluck('id')->toArray();
+
+            // Step 3: If the number of existing topics doesn't match the number of provided topic IDs, return an error
+            if (count($existingTopics) !== count($topicIds)) {
+                return $this->error("Not Found", "ada topic IDs salah atau tidak terdaftar.", 404);
             }
 
             // Step 3: Handle file upload for cover
@@ -206,10 +218,10 @@ class BookRepository implements BookInterface
             $book = Book::create($data);
 
             // Step 7: Attach topics to the book
-            if ($request->has('topics') && is_array($request->topics)) {
-                $topics = $request->topics; // Already validated as an array
-                $book->topics()->attach($topics); // Attach topics to the pivot table
-            }
+            // if ($request->has('topics') && is_array($request->topics)) {
+            $topics = explode(',', $request->topics); // Already validated as an array
+            $book->topics()->attach($topics); // Attach topics to the pivot table
+            // }
 
             // Step 8: Check if the book was created successfully
             if ($book) {
@@ -233,12 +245,11 @@ class BookRepository implements BookInterface
         // Step 1: Validate the request
         $validator = Validator::make($request->all(), [
             'title' => 'required|string',
-            'description' => 'string',
+            'description' => 'nullable|string',  // Allow null description
             'cover' => 'nullable|image|mimes:jpeg,png,jpg|max:3072',
             'file' => 'nullable|mimes:pdf|max:10240',
-            'ctg_book_id' => 'required|exists:ctg_book,id',
-            'topics' => 'required|array',              // Ensure topics is an array
-            'topics.*' => 'exists:topics,id',          // Validate each topic ID
+            'ctg_book_id' => 'required',
+            'topics' => 'required',
             'posted_at' => 'required|date_format:d-m-Y',
         ]);
 
@@ -247,21 +258,32 @@ class BookRepository implements BookInterface
         }
 
         try {
+            // Step 3: Find the book record by ID
+            $book = Book::find($id);
+            if (!$book) {
+                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
+            }
             // Step 2: Check if the category exists
             $ctg_book = Ctg_Book::find($request->ctg_book_id);
             if (!$ctg_book) {
                 return $this->error("Not Found", "Category Book dengan ID = ($request->ctg_book_id) tidak ditemukan!", 404);
             }
 
-            // Step 3: Find the book record by ID
-            $book = Book::find($id);
-            if (!$book) {
-                return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
+
+            // Step 1: Get the topic IDs from the request
+            $topicIds = explode(',', $request->topics);
+
+            // Step 2: Check if all the topic IDs exist in the database
+            $existingTopics = Topic::whereIn('id', $topicIds)->pluck('id')->toArray();
+
+            // Step 3: If the number of existing topics doesn't match the number of provided topic IDs, return an error
+            if (count($existingTopics) !== count($topicIds)) {
+                return $this->error("Not Found", "ada topic ID salah atau tidak terdaftar.", 404);
             }
 
             // Step 4: Update book fields
             $book->title = $request->title;
-            $book->description = $request->description;
+            $book->description = $request->description ?? $book->description;  // Default to empty string if null
             $book->slug = Str::slug($request->title);
             $book->file_link = $request->file_link;
             $book->ctg_book_id = $request->ctg_book_id;
@@ -270,60 +292,45 @@ class BookRepository implements BookInterface
 
             // Step 5: Handle cover image upload or deletion
             if ($request->hasFile('cover')) {
-                // Delete old cover image if there's a new one
                 Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $book->cover);
-
-                // Generate new file name and update the cover field
                 $fileNameCover = 'book_cover_' . time() . '-' . Str::slug($request->cover->getClientOriginalName()) . '.' . $request->cover->getClientOriginalExtension();
                 $book->cover = $fileNameCover;
-
-                // Save the new cover image
                 Helper::saveImage('cover', $fileNameCover, $request, $this->destinationImage);
             } elseif ($request->delete_cover) {
-                // Delete cover image if delete_cover flag is set
                 Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $book->cover);
                 $book->cover = null;
             }
 
             // Step 6: Handle file document upload or deletion
             if ($request->hasFile('file')) {
-                // Delete old file document if there's a new one
                 Helper::deleteFile($this->destinationFile, $book->file);
-
-                // Generate new file name and update the file field
                 $fileNameFile = 'book_file_' . time() . '-' . Str::slug($request->file->getClientOriginalName()) . '.' . $request->file->getClientOriginalExtension();
                 $book->file = $fileNameFile;
-
-                // Save the new file document
                 Helper::saveFile('file', $fileNameFile, $request, $this->destinationFile);
-
-                // Calculate and format file size
-                $fileSize = $request->file->getSize();
-                $book->file_size = $this->formatSize($fileSize);
+                $book->file_size = $this->formatSize($request->file->getSize());
             } elseif ($request->delete_file) {
-                // Delete file document if delete_file flag is set
                 Helper::deleteFile($this->destinationFile, $book->file);
                 $book->file = null;
                 $book->file_size = null;
             }
 
             // Step 7: Sync the topics if topic IDs are provided
-            if ($request->has('topics') && is_array($request->topics)) {
-                $book->topics()->sync($request->topics); // This will update the pivot table
-            }
+            // if ($request->has('topics') && is_array($request->topics)) {
+
+            $book->topics()->sync($topicIds); // This will update the pivot table
+            // }
 
             // Step 8: Save the updated book record
             if ($book->save()) {
                 // Step 9: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
-
                 return $this->success("Book Berhasil diperbaharui!", $book);
             }
 
             return $this->error("FAILED", "Book gagal diperbaharui!", 400);
         } catch (\Exception $e) {
             // Step 10: Handle any unexpected errors
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->error("Internal Server Error!", $e->getMessage(), 500);
         }
     }
 
@@ -402,10 +409,11 @@ class BookRepository implements BookInterface
     {
         try {
             // Get all trashed records
-            $data = Book::onlyTrashed()->get();
+            $data = Book::onlyTrashed();
+            // return $data;
 
             // Check if there are any trashed records to restore
-            if ($data->isEmpty()) {
+            if (!$data->exists()) {
                 return $this->error("Not Found", "Tidak ada Book yang ada di sampah untuk dipulihkan!", 404);
             }
 
@@ -426,7 +434,7 @@ class BookRepository implements BookInterface
         } catch (Exception $e) {
             // Log error and return an internal server error response
             Log::error("Error restoring all trashed berita: " . $e->getMessage(), ['exception' => $e]);
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->error("Internal Server Error!" . $e->getMessage(), $e->getMessage());
         }
     }
 
@@ -473,6 +481,50 @@ class BookRepository implements BookInterface
     //     return Book::latest($kondisi == "views" ? 'views' : 'posted_at')
     //         ->select(['book.*']);
     // }
+
+    public function markAsFavorite($bookId)
+    {
+        $user = auth()->user();  // Get the authenticated user
+        $book = Book::findOrFail($bookId);  // Find the book
+
+        // Mark the book as favorite (set 'favorite' column to true)
+        $user->favoriteBooks()->syncWithoutDetaching([
+            $book->id => ['favorite' => true]  // Add the 'favorite' column in the pivot table
+        ]);
+
+        return response()->json(['message' => 'Book marked as favorite.']);
+    }
+
+    public function removeFavorite($bookId)
+    {
+        $user = auth()->user();
+        $book = Book::findOrFail($bookId);
+
+        // Remove the book from the user's favorites by detaching or updating the 'favorite' column
+        $user->favoriteBooks()->updateExistingPivot($book->id, ['favorite' => false]);
+
+        return response()->json(['message' => 'Book removed from favorites.']);
+    }
+
+    public function getFavoriteBooks($request)
+    {
+        $user = auth()->user();
+
+        // Retrieve all books where the pivot column 'favorite' is true
+        $favoriteBooks = $user->favoriteBooks()->wherePivot('favorite', true)->get();
+
+        return response()->json($favoriteBooks);
+    }
+
+    public function getUsersWhoFavoritedBook($bookId)
+    {
+        $book = Book::findOrFail($bookId);  // Find the book
+
+        // Retrieve all users who have marked this book as a favorite
+        $users = $book->users()->wherePivot('favorite', true)->get();
+
+        return response()->json($users);
+    }
 
     function queryGetCategory($id)
     {

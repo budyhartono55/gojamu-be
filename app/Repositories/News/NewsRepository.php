@@ -330,7 +330,7 @@ class NewsRepository implements NewsInterface
     {
         try {
             // Get all trashed records
-            $data = News::onlyTrashed()->get();
+            $data = News::onlyTrashed();
 
             // Check if there are any trashed records to restore
             if ($data->isEmpty()) {

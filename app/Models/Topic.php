@@ -23,7 +23,7 @@ class Topic extends Model
     {
         return $this->belongsToMany(Book::class, 'book_topic', 'topic_id', 'book_id');
     }
-    public function medias()
+    public function mediasi()
     {
         return $this->hasMany(Media::class, 'topic_id');
     }

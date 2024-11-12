@@ -14,8 +14,10 @@ interface BookInterface
     public function deletePermanent($id);
     public function restore();
     public function restoreById($id);
-    // public function getByCategory($id, $request);    
-    // public function getAllBy($kondisi, $request);
+    public function getFavoriteBooks($request);
+    public function removeFavorite($id);
+    public function markAsFavorite($id);
+    public function getUsersWhoFavoritedBook($id);
     // public function search($keyword, $request);
     // public function read($slug);
     // public function geLimitBook($limit);

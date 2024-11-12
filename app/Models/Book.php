@@ -43,6 +43,13 @@ class Book extends Model
     {
         return $this->belongsToMany(Topic::class, 'book_topic', 'book_id', 'topic_id');
     }
+
+    public function users()
+    {
+        return $this->belongsToMany(User::class)
+            ->withPivot('favorite')
+            ->withTimestamps();
+    }
     // public function topics()
     // {
     //     return $this->belongsTo(Topic::class, 'topic_id', 'id');

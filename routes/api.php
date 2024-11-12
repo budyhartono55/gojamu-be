@@ -200,6 +200,12 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE PERMANENT
     Route::delete("/book/permanent/{id}", [BookController::class, "deletePermanent"])->name("deleteBookPermanent");
 
+    Route::post("/book/favorite/{id}", [BookController::class, "markAsFavorite"])->name("markAsFavorite");
+    Route::post("/book/unfavorite/{id}", [BookController::class, "removeFavorite"])->name("removeFavorite");
+    Route::get("/book/favorite", [BookController::class, "getFavoriteBooks"])->name("getFavoriteBooks");
+    Route::get("/book/favorite-user/{id}", [BookController::class, "getUsersWhoFavoritedBook"])->name("getUsersWhoFavoritedBook");
+
+
 
     // =======================================================================================================
     // C A T E G O R Y  - B O O K

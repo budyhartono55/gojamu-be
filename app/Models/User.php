@@ -80,4 +80,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Report::class, 'user_id', 'id');
     }
+    public function favoriteBooks()
+    {
+        return $this->belongsToMany(Book::class)
+            ->withPivot('favorite')
+            ->withTimestamps();
+    }
 }
