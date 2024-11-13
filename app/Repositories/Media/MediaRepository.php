@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
 use App\Helpers\Helper;
 use App\Models\CtgMedia;
+use App\Models\Topic;
+use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
 use Intervention\Image\Facades\Image;
@@ -42,7 +44,7 @@ class MediaRepository implements MediaInterface
     public function getMedias($request)
     {
         $limit = Helper::limitDatas($request);
-        $getSlug = $request->slug;
+        // $getSlug = $request->slug;
         $getCategory = $request->ctg;
         $getKeyword =  $request->search;
 
@@ -73,16 +75,25 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Keseluruhan Konten/Media", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
                 ->latest('created_at')
                 ->paginate(12);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             if ($media) {
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['name']);
-                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
                     unset($item->createdBy, $item->editedBy, $item->ctgMedias);
@@ -114,14 +125,23 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
                 ->where('ctg_media_id', $category->id)
                 ->where(function ($query) use ($keyword) {
-                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
-                    // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->latest('created_at')
                 ->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             // if ($media->total() > 0) {
             if ($media) {
@@ -161,10 +181,19 @@ class MediaRepository implements MediaInterface
             }
             $category = CtgMedia::where('slug', $slug)->first();
             if ($category) {
-                $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
+                $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }])
                     ->where('ctg_media_id', $category->id)
                     ->latest('created_at')
                     ->paginate($limit);
+
+                //clear eager load topics
+                foreach ($media->items() as $mediaItem) {
+                    foreach ($mediaItem->topics as $topic) {
+                        $topic->makeHidden(['pivot']);
+                    }
+                }
 
                 // if ($media->total() > 0) {
                 $modifiedData = $media->items();
@@ -201,13 +230,21 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Konten/Media dengan keyword = ($keyword).", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias'])
-                ->where(function ($query) use ($keyword) {
-                    $query->where('title_media', 'LIKE', '%' . $keyword . '%');
-                    // ->orWhere('description', 'LIKE', '%' . $keyword . '%');
-                })
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])->where(function ($query) use ($keyword) {
+                $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                    ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+            })
                 ->latest('created_at')
                 ->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
 
             if ($media) {
                 $modifiedData = $media->items();
@@ -233,42 +270,6 @@ class MediaRepository implements MediaInterface
         }
     }
 
-    // public function showBySlug($slug)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_" . $slug;
-    //         $keyAuth = $this->generalRedisKeys . "auth_" . $slug;
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE): Detail Konten/Media dengan slug = ($slug)", $result);
-    //         }
-
-    //         $slug = Str::slug($slug);
-    //         $media = Media::where('slug', $slug)
-    //             ->latest('created_at')
-    //             ->first();
-
-    //         if ($media) {
-    //             $createdBy = User::select('name')->find($media->created_by);
-    //             $editedBy = User::select('name')->find($media->edited_by);
-    //             $ctgMedias = CtgMedia::select(['id', 'title_ctg', 'slug'])->find($media->ctg_media_id);
-
-    //             $media->ctg_media_id = optional($ctgMedias)->only(['id', 'title_ctg', 'slug']);
-    //             $media->created_by = optional($createdBy)->only(['name']);
-    //             $media->edited_by = optional($editedBy)->only(['name']);
-
-    //             $key = Auth::check() ? $key : $key;
-    //             Redis::setex($key, 60, json_encode($media));
-    //             return $this->success("Detail Konten/Media dengan slug = ($slug)", $media);
-    //         } else {
-    //             return $this->error("Not Found", "Konten/Media dengan slug = ($slug) tidak ditemukan!", 404);
-    //         }
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-
     // findOne
     public function findById($id)
     {
@@ -287,10 +288,14 @@ class MediaRepository implements MediaInterface
                 $createdBy = User::select('name')->find($media->created_by);
                 $editedBy = User::select('name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
+                $topics = $media->topics()->select('id', 'title', 'slug')->get();
 
                 $media->created_by = optional($createdBy)->only(['name']);
                 $media->edited_by = optional($editedBy)->only(['name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
+                $media->topics = $topics->map(function ($topic) {
+                    return $topic->only(['id', 'title', 'slug']);
+                });
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
@@ -311,17 +316,15 @@ class MediaRepository implements MediaInterface
             [
                 'title_media' =>  'required',
                 'ctg_media_id' =>  'required',
-                'icon'          =>  'image|
-                                    mimes:jpeg,png,jpg,gif|
-                                    max:3072',
+                'topic_id' =>  'required',
+                'ytb_url' =>  'required',
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama layanan!',
-                'url.required' => 'URL tidak boleh Kosong!',
-                'ctg_media_id.required' => 'Masukkan ketegori layanan!',
-                'icon.image' => 'Pastikan file foto bertipe gambar',
-                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg dan gif',
-                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'title_media.required' => 'Mohon masukkan nama konten/media!',
+                'ytb_url.required' => 'URL video tidak boleh Kosong!',
+                'topic_id.required' => 'Masukkan topik konten/media!',
+                'topic_id.array' => 'Masukkan topik konten/media berupa array!',
+                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
 
@@ -332,8 +335,12 @@ class MediaRepository implements MediaInterface
         try {
             $media = new Media();
             $media->title_media = $request->title_media;
-            $media->url = $request->url ?? '';
+            $media->description = $request->description;
+            $media->ytb_url = $request->ytb_url ?? '';
+            $media->posted_at = Carbon::now();
+            $media->report_stat = 'Normal'; //default
 
+            //ctg_media_id
             $ctg_media_id = $request->ctg_media_id;
             $ctg = CtgMedia::where('id', $ctg_media_id)->first();
             if ($ctg) {
@@ -342,24 +349,25 @@ class MediaRepository implements MediaInterface
                 return $this->error("Tidak ditemukan!", "Kategori Media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
 
-            if ($request->hasFile('icon')) {
-                $destination = 'public/icons';
-                $icon = $request->file('icon');
-                $iconName = $media->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
-
-                $media->icon = $iconName;
-                //storeOriginal
-                $icon->storeAs($destination, $iconName);
-
-                // compress to thumbnail 
-                Helper::resizeIcon($icon, $iconName, $request);
+            //topics
+            $cleaned_topic_ids = str_replace(' ', '', $request->topic_id);
+            $topic_ids = explode(',', $cleaned_topic_ids);
+            foreach ($topic_ids as $topic_id) {
+                $topic = Topic::where('id', $topic_id)->first();
+                if (!$topic) {
+                    return $this->error("Tidak ditemukan!", "Topik dengan ID = ($topic_id) tidak ditemukan!", 404);
+                }
             }
 
             $user = Auth::user();
+            $media->user_id = $user->id;
             $media->created_by = $user->id;
             $media->edited_by = $user->id;
 
+            // save
             $create = $media->save();
+            $media->topics()->attach($topic_ids);
+
             if ($create) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("Konten/Media Berhasil ditambahkan!", $media);
@@ -376,22 +384,21 @@ class MediaRepository implements MediaInterface
             $request->all(),
             [
                 'title_media' =>  'required',
-                'icon'          =>  'image|
-                                    mimes:jpeg,png,jpg,gif,svg|
-                                    max:3072',
-
+                'ctg_media_id' =>  'required',
+                'topic_id' =>  'required',
+                'ytb_url' =>  'required',
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama layanan!',
-                'icon.image' => 'Pastikan file foto bertipe gambar',
-                'icon.mimes' => 'Format gambar yang diterima hanya jpeg, png, jpg, gif dan svg',
-                'icon.max' => 'File Icon terlalu besar, usahakan dibawah 3MB',
+                'title_media.required' => 'Mohon masukkan nama konten/media!',
+                'ytb_url.required' => 'URL video tidak boleh Kosong!',
+                'topic_id.required' => 'Masukkan topik konten/media!',
+                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
             ]
         );
 
         //check if validation fails
         if ($validator->fails()) {
-            return $this->error("Upps, Validation Failed!", $validator->errors(), 400);
+            return $this->error("Terjadi Kesalahan!, Validasi Gagal.", $validator->errors(), 400);
         }
         try {
             // search
@@ -401,35 +408,13 @@ class MediaRepository implements MediaInterface
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($request->hasFile('icon')) {
-                //checkImage
-                if ($media->icon) {
-                    Storage::delete('public/icons/' . $media->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-                }
-                $destination = 'public/icons';
-                $icon = $request->file('icon');
-                $label = Str::slug($request->title_media, '-');
-                $imageName = $label . "-" . time() . "." . $icon->getClientOriginalExtension();
 
-                $media->icon = $imageName;
-                //storeOriginal
-                $icon->storeAs($destination, $imageName);
-
-                // compress to thumbnail 
-                Helper::resizeIcon($icon, $imageName, $request);
-            } else {
-                if ($request->delete_image) {
-                    Storage::delete('public/icons/' . $media->icon);
-                    Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-                    $media->icon = null;
-                }
-                $media->icon = $media->icon;
-            }
 
             // approved
             $media['title_media'] = $request->title_media ?? $media->title_media;
-            $media['url'] = $request->url ?? $media->url;
+            $media['description'] = $request->description ?? $media->description;
+            $media['ytb_url'] = $request->ytb_url ?? $media->ytb_url;
+            $media['report_stat'] = $request->report_stat ?? $media->report_stat;
 
             $ctg_media_id = $request->ctg_media_id;
             $ctg = CtgMedia::where('id', $ctg_media_id)->first();
@@ -438,11 +423,24 @@ class MediaRepository implements MediaInterface
             } else {
                 return $this->error("Tidak ditemukan!", "Kategori media dengan ID = ($ctg_media_id) tidak ditemukan!", 404);
             }
+
+            $cleaned_topic_ids = str_replace(' ', '', $request->topic_id);
+            $topic_ids = explode(',', $cleaned_topic_ids);
+            foreach ($topic_ids as $topic_id) {
+                $topic = Topic::where('id', $topic_id)->first();
+                if (!$topic) {
+                    return $this->error("Tidak ditemukan!", "Topik dengan ID = ($topic_id) tidak ditemukan!", 404);
+                }
+            }
+
+            $media['user_id'] = $media->user_id;
             $media['created_by'] = $media->created_by;
             $media['edited_by'] = Auth::user()->id;
 
             //save
             $update = $media->save();
+            $media->topics()->sync($topic_ids);
+
             if ($update) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("Konten/Media Berhasil diperbaharui!", $media);
@@ -461,11 +459,8 @@ class MediaRepository implements MediaInterface
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
-            if ($media->icon) {
-                Storage::delete('public/icons/' . $media->icon);
-                Storage::delete('public/thumbnails/t_icons/' . $media->icon);
-            }
             // approved
+            $media->topics()->detach();
             $del = $media->delete();
             if ($del) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
