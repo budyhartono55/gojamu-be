@@ -31,10 +31,6 @@ class Comment extends Model
     {
         return $this->hasMany(Report::class, 'comment_id', 'id');
     }
-    // public function comments()
-    // {
-    //     return $this->belongsTo(Comment::class, 'comment_id', 'id');
-    // }
 
     // general
     public function createdBy()

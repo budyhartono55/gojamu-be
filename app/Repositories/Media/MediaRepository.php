@@ -21,6 +21,7 @@ use App\Helpers\Helper;
 use App\Models\CtgMedia;
 use App\Models\Topic;
 use App\Models\Like;
+use App\Models\Comment;
 use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
@@ -318,10 +319,12 @@ class MediaRepository implements MediaInterface
                 $editedBy = User::select('name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
                 $topics = $media->topics()->select('id', 'title', 'slug')->get();
+                // $comment = $media->comments()->select('id', 'name')->get();
 
                 $media->created_by = optional($createdBy)->only(['name']);
                 $media->edited_by = optional($editedBy)->only(['name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
+                // $media->user_id = optional($comment)->only(['id', 'name']);
                 $media->topics = $topics->map(function ($topic) {
                     return $topic->only(['id', 'title', 'slug']);
                 });
@@ -334,6 +337,12 @@ class MediaRepository implements MediaInterface
                     $media->liked_stat = 0;
                 }
 
+                $comments = $media->comments()->with('users:id,name')->get();
+                $media->comments = $comments->map(function ($comment) {
+                    $comment->user_name = $comment->users->name;
+                    unset($comment->users);
+                    return $comment;
+                });
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
                 return $this->success("Detail Konten/Media dengan ID = ($id)", $media);
