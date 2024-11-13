@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\Ctg_ServiceController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\LikeController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\GalleryController;
@@ -146,6 +147,17 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
     // DELETE
     Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
+    // =======================================================================================================
+    // Comment
+    // //GET
+    Route::get("/comment", [CommentController::class, "index"])->name("comment");
+    Route::get("/comment/{id}", [CommentController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/comment", [CommentController::class, "insert"])->name("createComment");
+    // PATCH
+    Route::patch("/comment/{id}", [CommentController::class, "edit"])->name("editComment");
+    // DELETE
+    Route::delete("/comment/{id}", [CommentController::class, "drop"])->name("deleteComment");
     // =======================================================================================================
     // LIKE
     // POST
