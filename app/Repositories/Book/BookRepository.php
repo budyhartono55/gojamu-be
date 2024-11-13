@@ -55,18 +55,36 @@ class BookRepository implements BookInterface
 
             $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
-            $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . "#params" . $params;
+            $user = Auth::user(); // Get the currently authenticated user
+            $statusLogin = !Auth::check() ? "-public-" : $user->username;
+            $key = $this->generalRedisKeys . "All" . $statusLogin . request()->get('page', 1) . "#params" . $params;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("List Book By {$params} from (CACHE)", $result);
             }
-
+            $sql = $query = Book::with([
+                'topics' => function ($query) {
+                    // Only include the favorite entry for the current user
+                    $query->select('id', 'title', 'slug'); // Select only 'id' and 'name' from the users table;
+                },
+                'ctg_book' => function ($query) {
+                    // Only include the favorite entry for the current user
+                    $query->select('id', 'title_category', 'slug'); // Select only 'id' and 'name' from the users table;
+                },
+                'favoritedBy' => function ($query) use ($user) {
+                    // Only include the favorite entry for the current user
+                    $query->where('user_id',  Auth::check() ? $user->id : 1)->select('user_id', 'name');
+                    //  // Select only 'id' and 'name' from the users table;
+                }
+            ])->withCount('favoritedBy') // This will return the count of users who favorited the book
+                ->orderBy('posted_at', $order);
             // Step 6: Build the query
             if ($getTrash === "true") {
-                $query = Book::onlyTrashed()->with(['topics', 'ctg_book', 'favorite'])->orderBy('posted_at', $order);
+                $query = $sql->onlyTrashed();
             } else {
-                $query = Book::with(['topics', 'ctg_book', 'favorite'])->orderBy('posted_at', $order);
+                $query = $sql;
             }
+
 
             // Step 4: Apply search filter
             if ($request->filled('search')) {
@@ -138,7 +156,7 @@ class BookRepository implements BookInterface
 
             return $this->success("List Book By {$params}", $datas);
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error!" . $e->getMessage(), "");
+            return $this->error("Internal Server Error!" . $e->getMessage(), $e->getMessage());
         }
     }
 
@@ -434,7 +452,7 @@ class BookRepository implements BookInterface
         } catch (Exception $e) {
             // Log error and return an internal server error response
             Log::error("Error restoring all trashed berita: " . $e->getMessage(), ['exception' => $e]);
-            return $this->error("Internal Server Error!" . $e->getMessage(), $e->getMessage());
+            return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
 
@@ -484,47 +502,62 @@ class BookRepository implements BookInterface
 
     public function markAsFavorite($bookId)
     {
-        $user = auth()->user();  // Get the authenticated user
-        $book = Book::findOrFail($bookId);  // Find the book
+        try {
+            $user = auth()->user(); // Get the authenticated user
 
-        // Mark the book as favorite (set 'favorite' column to true)
-        $user->favoriteBooks()->syncWithoutDetaching([
-            $book->id => ['favorite' => true]  // Add the 'favorite' column in the pivot table
-        ]);
+            // Check if the book is already marked as favorite
+            if ($user->favoriteBooks()->where('book_id', $bookId)->exists()) {
+                return response()->json(['message' => 'Buku sudah ditandai sebagai favorit.'], 400);
+            }
 
-        return response()->json(['message' => 'Book marked as favorite.']);
+            // Mark the book as favorite
+            $user->favoriteBooks()->attach($bookId, ['marked_at' => now()]);
+            Helper::deleteRedis($this->generalRedisKeys . "*");
+
+            return $this->success("COMPLETED", "Buku berhasil ditandai sebagai favorit!");
+        } catch (Exception $e) {
+            // Log error and return an internal server error response
+            Log::error("Error Tandai Buku sebagai Favorit: " . $e->getMessage(), ['exception' => $e]);
+            return $this->error("Internal Server Error!", $e->getMessage());
+        }
     }
 
     public function removeFavorite($bookId)
     {
-        $user = auth()->user();
-        $book = Book::findOrFail($bookId);
+        try {
 
-        // Remove the book from the user's favorites by detaching or updating the 'favorite' column
-        $user->favoriteBooks()->updateExistingPivot($book->id, ['favorite' => false]);
+            $user = auth()->user();
 
-        return response()->json(['message' => 'Book removed from favorites.']);
+            // Check if the book is marked as favorite
+            if (!$user->favoriteBooks()->where('book_id', $bookId)->exists()) {
+                return response()->json(['message' => 'Buku tidak ditandai sebagai favorit.'], 400);
+            }
+
+            // Unmark the book as favorite
+            $user->favoriteBooks()->detach($bookId);
+            Helper::deleteRedis($this->generalRedisKeys . "*");
+            return $this->success("COMPLETED", "Buku dihapus dari favorit!");
+        } catch (Exception $e) {
+            // Log error and return an internal server error response
+            Log::error("Error Hapus Buku sebagai Favorit: " . $e->getMessage(), ['exception' => $e]);
+            return $this->error("Internal Server Error!", $e->getMessage());
+        }
     }
 
     public function getFavoriteBooks($request)
     {
         $user = auth()->user();
+        $favorites = $user->favoriteBooks; // Fetch all favorite books
 
-        // Retrieve all books where the pivot column 'favorite' is true
-        $favoriteBooks = $user->favoriteBooks()->wherePivot('favorite', true)->get();
+        return response()->json($favorites);
+        // $user = auth()->user();
 
-        return response()->json($favoriteBooks);
+        // // Retrieve all books where the pivot column 'favorite' is true
+        // $favoriteBooks = $user->favoriteBooks()->wherePivot('favorite', true)->get();
+
+        // return response()->json($favoriteBooks);
     }
 
-    public function getUsersWhoFavoritedBook($bookId)
-    {
-        $book = Book::findOrFail($bookId);  // Find the book
-
-        // Retrieve all users who have marked this book as a favorite
-        $users = $book->users()->wherePivot('favorite', true)->get();
-
-        return response()->json($users);
-    }
 
     function queryGetCategory($id)
     {
@@ -570,6 +603,7 @@ class BookRepository implements BookInterface
         // $item = Helper::queryGetUserModify($item);
         $item->created_by = optional($item->createdBy)->only(['id', 'name']);
         $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+        // $item->topic->makeHidden('pivot');
 
         unset($item->createdBy, $item->editedBy, $item->deleted_at);
 

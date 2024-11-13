@@ -137,29 +137,32 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/service/{id}", [ServiceController::class, "drop"])->name("deleteService");
 
-    // =======================================================================================================
-    // CTG_Media
-    // //GET
-    Route::get("/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
-    Route::get("/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/ctg-media", [CtgMediaController::class, "insert"])->name("createCtgMedia");
-    // PATCH
-    Route::patch("/ctg-media/{id}", [CtgMediaController::class, "edit"])->name("editCtgMedia");
-    // DELETE
-    Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
-    // =======================================================================================================
-    // Service
-    // //GET
-    Route::get("/media", [MediaController::class, "index"])->name("media");
-    Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/media", [MediaController::class, "insert"])->name("createMedia");
-    // PATCH
-    Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
-    // DELETE
-    Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
 
+    Route::middleware(['isAkses:Admin'])->group(function () {
+
+        // =======================================================================================================
+        // CTG_Media
+        // //GET
+        Route::get("/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
+        Route::get("/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
+        // POST
+        Route::post("/ctg-media", [CtgMediaController::class, "insert"])->name("createCtgMedia");
+        // PATCH
+        Route::patch("/ctg-media/{id}", [CtgMediaController::class, "edit"])->name("editCtgMedia");
+        // DELETE
+        Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
+        // =======================================================================================================
+        // Service
+        // //GET
+        Route::get("/media", [MediaController::class, "index"])->name("media");
+        Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
+        // POST
+        Route::post("/media", [MediaController::class, "insert"])->name("createMedia");
+        // PATCH
+        Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
+        // DELETE
+        Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
+    });
     // =======================================================================================================
     // CTG_GALLERY
     // //GET
@@ -183,43 +186,43 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/gallery/{id}", [GalleryController::class, "delete"])->name("deleteGallery");
 
+    Route::middleware(['isAkses:Admin'])->group(function () {
 
-    // =======================================================================================================
-    // B O O K
-    // GET
-    Route::get('/book', [BookController::class, "getBook"])->name("book");
-    // POST
-    Route::post("/book", [BookController::class, "save"])->name("createBook");
-    Route::post("/book/restore", [BookController::class, "restore"])->name("restoreBook");
-    Route::post("/book/restore/{id}", [BookController::class, "restoreById"])->name("restoreByIdBook");
+        // =======================================================================================================
+        // B O O K
+        // GET
+        Route::get('/book', [BookController::class, "getBook"])->name("book");
+        // POST
+        Route::post("/book", [BookController::class, "save"])->name("createBook");
+        Route::post("/book/restore", [BookController::class, "restore"])->name("restoreBook");
+        Route::post("/book/restore/{id}", [BookController::class, "restoreById"])->name("restoreByIdBook");
 
-    // PATCH
-    Route::patch("/book/{id}", [BookController::class, "update"])->name("editBook");
-    // DELETE
-    Route::delete("/book/{id}", [BookController::class, "delete"])->name("deleteBook");
-    // DELETE PERMANENT
-    Route::delete("/book/permanent/{id}", [BookController::class, "deletePermanent"])->name("deleteBookPermanent");
+        // PATCH
+        Route::patch("/book/{id}", [BookController::class, "update"])->name("editBook");
+        // DELETE
+        Route::delete("/book/{id}", [BookController::class, "delete"])->name("deleteBook");
+        // DELETE PERMANENT
+        Route::delete("/book/permanent/{id}", [BookController::class, "deletePermanent"])->name("deleteBookPermanent");
 
-    Route::post("/book/favorite/{id}", [BookController::class, "markAsFavorite"])->name("markAsFavorite");
-    Route::post("/book/unfavorite/{id}", [BookController::class, "removeFavorite"])->name("removeFavorite");
-    Route::get("/book/favorite", [BookController::class, "getFavoriteBooks"])->name("getFavoriteBooks");
-    Route::get("/book/favorite-user/{id}", [BookController::class, "getUsersWhoFavoritedBook"])->name("getUsersWhoFavoritedBook");
-
-
-
-    // =======================================================================================================
-    // C A T E G O R Y  - B O O K
-    // //GET
-    Route::get("/ctg-book", [Ctg_BookController::class, "index"])->name("ctg");
-    // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/ctg-book", [Ctg_BookController::class, "add"])->name("createCategory");
-    // PATCH
-    Route::patch("/ctg-book/{id}", [Ctg_BookController::class, "edit"])->name("editCategory");
-    // DELETE
-    Route::delete("/ctg-book/{id}", [Ctg_BookController::class, "delete"])->name("deleteCategory");
+        Route::post("/book/favorite/{id}", [BookController::class, "markAsFavorite"])->name("markAsFavorite");
+        Route::post("/book/unfavorite/{id}", [BookController::class, "removeFavorite"])->name("removeFavorite");
+        Route::get("/book/favorite", [BookController::class, "getFavoriteBooks"])->name("getFavoriteBooks");
+        Route::get("/book/favorite-user/{id}", [BookController::class, "getUsersWhoFavoritedBook"])->name("getUsersWhoFavoritedBook");
 
 
+
+        // =======================================================================================================
+        // C A T E G O R Y  - B O O K
+        // //GET
+        Route::get("/ctg-book", [Ctg_BookController::class, "index"])->name("ctg");
+        // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+        // POST
+        Route::post("/ctg-book", [Ctg_BookController::class, "add"])->name("createCategory");
+        // PATCH
+        Route::patch("/ctg-book/{id}", [Ctg_BookController::class, "edit"])->name("editCategory");
+        // DELETE
+        Route::delete("/ctg-book/{id}", [Ctg_BookController::class, "delete"])->name("deleteCategory");
+    });
 
     // =======================================================================================================
     // T O P I C

@@ -2,12 +2,11 @@
 
 namespace App\Http\Middleware;
 
-use App\Helpers\Helper;
 use Closure;
 use Illuminate\Http\Request;
 use App\Traits\API_response;
 
-class isUser
+class isAkses
 {
     use API_response;
     /**
@@ -17,11 +16,14 @@ class isUser
      * @param  \Closure(\Illuminate\Http\Request): (\Illuminate\Http\Response|\Illuminate\Http\RedirectResponse)  $next
      * @return \Illuminate\Http\Response|\Illuminate\Http\RedirectResponse
      */
-    public function handle(Request $request, Closure $next)
+    public function handle(Request $request, Closure $next, $aksesAllowList)
     {
-        if (Helper::isUser()) {
+        $aksesCurrent = auth()->user()->role;
+        // $listAkses = ['SuperAdmin', 'Admin', 'Operator', 'Verifikator', 'Tamu'];
+        $aksesAllow = explode("|", $aksesAllowList);
+        if (in_array($aksesCurrent, $aksesAllow)) {
             return $next($request);
         }
-        return $this->error("Unauthorized", "Akses Tidak diijinkan", 401);
+        return $this->error("Unauthorized", "Akses Tidak diijinkan!", 403);
     }
 }

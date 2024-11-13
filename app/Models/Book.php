@@ -25,15 +25,6 @@ class Book extends Model
 
     // relasi one to many (comment)
 
-    // public function user()
-    // {
-    //     return $this->belongsTo(User::class, 'user_id');
-    // }
-
-    public function favorite()
-    {
-        return $this->hasMany(Favorite::class, 'book_id');
-    }
 
     public function ctg_book()
     {
@@ -43,17 +34,11 @@ class Book extends Model
     {
         return $this->belongsToMany(Topic::class, 'book_topic', 'book_id', 'topic_id');
     }
-
-    public function users()
+    public function favoritedBy()
     {
-        return $this->belongsToMany(User::class)
-            ->withPivot('favorite')
-            ->withTimestamps();
+        return $this->belongsToMany(User::class, 'book_favorite_user')->withTimestamps()->withPivot('marked_at');
     }
-    // public function topics()
-    // {
-    //     return $this->belongsTo(Topic::class, 'topic_id', 'id');
-    // }
+
 
     //================================================
     public function createdBy()

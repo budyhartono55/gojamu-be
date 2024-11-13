@@ -17,7 +17,6 @@ interface BookInterface
     public function getFavoriteBooks($request);
     public function removeFavorite($id);
     public function markAsFavorite($id);
-    public function getUsersWhoFavoritedBook($id);
     // public function search($keyword, $request);
     // public function read($slug);
     // public function geLimitBook($limit);

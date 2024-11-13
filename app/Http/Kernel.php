@@ -69,5 +69,7 @@ class Kernel extends HttpKernel
         'notLogin' => \App\Http\Middleware\notLogin::class,
         'LogApiResponse' => \App\Http\Middleware\LogApiResponse::class,
         'XssSanitizer' => \App\Http\Middleware\XssSanitization::class,
+        'isAkses' => \App\Http\Middleware\isAkses::class,
+
     ];
 }
