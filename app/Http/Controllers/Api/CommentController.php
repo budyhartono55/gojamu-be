@@ -23,14 +23,14 @@ class CommentController extends Controller
 
     //M E T H O D E ======================
     // core
-    // public function index(Request $request)
-    // {
-    //     return $this->commentRepository->getComments($request);
-    // }
-    // public function findById($id)
-    // {
-    //     return $this->commentRepository->findById($id);
-    // }
+    public function index(Request $request)
+    {
+        return $this->commentRepository->getComments($request);
+    }
+    public function findById($id)
+    {
+        return $this->commentRepository->findById($id);
+    }
     // create
     public function insert(Request $request)
     {
@@ -38,14 +38,14 @@ class CommentController extends Controller
     }
 
     // update
-    // public function edit(Request $request, $id)
-    // {
-    //     return $this->commentRepository->updateComment($request, $id);
-    // }
+    public function edit(Request $request, $id)
+    {
+        return $this->commentRepository->updateComment($request, $id);
+    }
 
     // // delete
-    // public function drop($id)
-    // {
-    //     return $this->commentRepository->deleteComment($id);
-    // }
+    public function drop($id)
+    {
+        return $this->commentRepository->deleteComment($id);
+    }
 }
