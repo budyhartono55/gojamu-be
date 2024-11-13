@@ -223,6 +223,7 @@ class CommentRepository implements CommentInterface
             $mediaId = $request->media_id;
             $comment = new Comment();
             $comment->comment = $request->comment;
+            $comment->parent_id = $request->parent_id ? $request->parent_id : null;
             $comment->media_id = $mediaId;
             $comment->posted_at = Carbon::now();
             $comment->report_stat = 'Normal'; //default

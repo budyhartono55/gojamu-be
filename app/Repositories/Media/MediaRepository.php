@@ -304,8 +304,6 @@ class MediaRepository implements MediaInterface
                 $result = json_decode(Redis::get($key . $id));
                 return $this->success("(CACHE): Detail Konten/Media dengan ID = ($id)", $result);
             }
-            // $userId = Auth::id();
-            // $media = Media::find($id);
             $userId = Auth::id();
 
             // Menggunakan withCount untuk cek liked_stat
@@ -319,12 +317,10 @@ class MediaRepository implements MediaInterface
                 $editedBy = User::select('name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
                 $topics = $media->topics()->select('id', 'title', 'slug')->get();
-                // $comment = $media->comments()->select('id', 'name')->get();
 
                 $media->created_by = optional($createdBy)->only(['name']);
                 $media->edited_by = optional($editedBy)->only(['name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
-                // $media->user_id = optional($comment)->only(['id', 'name']);
                 $media->topics = $topics->map(function ($topic) {
                     return $topic->only(['id', 'title', 'slug']);
                 });
@@ -337,12 +333,22 @@ class MediaRepository implements MediaInterface
                     $media->liked_stat = 0;
                 }
 
-                $comments = $media->comments()->with('users:id,name')->get();
-                $media->comments = $comments->map(function ($comment) {
+                $comments = $media->comments()
+                    ->with(['users:id,name', 'replies.users:id,name'])
+                    ->whereNull('parent_id')
+                    ->get();
+
+                $comments->each(function ($comment) {
                     $comment->user_name = $comment->users->name;
                     unset($comment->users);
-                    return $comment;
+                    $comment->replies->each(function ($reply) {
+                        $reply->user_name = $reply->users->name;
+                        unset($reply->users);
+                    });
                 });
+
+                $media->comments = $comments;
+
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
                 return $this->success("Detail Konten/Media dengan ID = ($id)", $media);
