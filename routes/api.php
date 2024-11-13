@@ -150,14 +150,14 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
     // Comment
     // //GET
-    Route::get("/comment", [CommentController::class, "index"])->name("comment");
-    Route::get("/comment/{id}", [CommentController::class, "findById"])->name("findOne");
+    Route::get("/media/comment", [CommentController::class, "index"])->name("comment");
+    Route::get("/media/comment/{id}", [CommentController::class, "findById"])->name("findOne");
     // POST
-    Route::post("/comment", [CommentController::class, "insert"])->name("createComment");
+    Route::post("/media/comment", [CommentController::class, "insert"])->name("createComment");
     // PATCH
-    Route::patch("/comment/{id}", [CommentController::class, "edit"])->name("editComment");
+    Route::patch("/media/comment/{id}", [CommentController::class, "edit"])->name("editComment");
     // DELETE
-    Route::delete("/comment/{id}", [CommentController::class, "drop"])->name("deleteComment");
+    Route::delete("/media/comment/{id}", [CommentController::class, "drop"])->name("deleteComment");
     // =======================================================================================================
     // LIKE
     // POST

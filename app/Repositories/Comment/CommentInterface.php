@@ -7,12 +7,12 @@ use Illuminate\Http\Request;
 interface CommentInterface
 {
     // getAll
-    public function getComments($request);
-    public function findById($id);
+    // public function getComments($request);
+    // public function findById($id);
     // insertData
     public function createComment($request);
     // update
-    public function updateComment($request, $id);
-    // delete
-    public function deleteComment($id);
+    // public function updateComment($request, $id);
+    // // delete
+    // public function deleteComment($id);
 }
