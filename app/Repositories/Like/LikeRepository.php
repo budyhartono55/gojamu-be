@@ -9,6 +9,8 @@ use App\Traits\API_response;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Redis;
+use App\Helpers\RedisHelper;
 
 
 
@@ -23,6 +25,7 @@ class LikeRepository implements LikeInterface
     public function __construct(Like $like)
     {
         $this->like = $like;
+        $this->generalRedisKeys = "media_";
     }
 
     // create
@@ -53,9 +56,13 @@ class LikeRepository implements LikeInterface
                 $existingLike = Like::where('user_id', $user->id)->where('media_id', $mediaId)->first();
 
                 if ($existingLike) {
-                    $existingLike->delete();
-                    Media::where('id', $mediaId)->decrement('like_count');
-                    return $this->success("Unlike", "Berhasil melakukan Unlike!");
+
+                    $exist = $existingLike->delete();
+                    if ($exist) {
+                        Media::where('id', $mediaId)->decrement('like_count');
+                        // RedisHelper::dropKeys($this->generalRedisKeys);
+                        return $this->success("Unlike", "Berhasil melakukan Unlike!");
+                    }
                 } else {
                     $newLike = new Like();
                     $newLike->user_id = $user->id;
@@ -64,9 +71,12 @@ class LikeRepository implements LikeInterface
                     $newLike->created_by = $user->id;
                     $newLike->edited_by = $user->id;
 
-                    $newLike->save();
-                    Media::where('id', $mediaId)->increment('like_count');
-                    return $this->success("Like berhasil direkam!", $newLike);
+                    $create =   $newLike->save();
+                    if ($create) {
+                        Media::where('id', $mediaId)->increment('like_count');
+                        // RedisHelper::dropKeys($this->generalRedisKeys);
+                        return $this->success("Like berhasil direkam!", $newLike);
+                    }
                 }
             }
         } catch (\Exception $e) {

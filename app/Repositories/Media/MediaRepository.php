@@ -75,12 +75,25 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Keseluruhan Konten/Media", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
-                $query->select('id', 'title', 'slug');
-            }])
+            $userId = Auth::id();
+            // $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+            //     $query->select('id', 'title', 'slug');
+            // }])
+            //     ->latest('created_at')
+            //     ->paginate(12);
+            $media = Media::with([
+                'createdBy',
+                'editedBy',
+                'ctgMedias',
+                'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }
+            ])
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate(12);
-
             //clear eager load topics
             foreach ($media->items() as $mediaItem) {
                 foreach ($mediaItem->topics as $topic) {
