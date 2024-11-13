@@ -20,6 +20,6 @@ class LikeController extends Controller
     // create
     public function insert(Request $request)
     {
-        return $this->likeRepository->toggleLike($request);
+        return $this->likeRepository->toggleLikeMedia($request);
     }
 }

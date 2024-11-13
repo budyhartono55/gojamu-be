@@ -136,7 +136,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
     // =======================================================================================================
-    // Media
+    // MEDIA
     // //GET
     Route::get("/media", [MediaController::class, "index"])->name("media");
     Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
@@ -147,8 +147,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
     // =======================================================================================================
-
-    // Like
+    // LIKE
     // POST
     Route::post("/media/like", [LikeController::class, "insert"])->name("createLike");
     // =======================================================================================================

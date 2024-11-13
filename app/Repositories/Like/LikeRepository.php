@@ -29,7 +29,7 @@ class LikeRepository implements LikeInterface
     }
 
     // create
-    public function toggleLike($request)
+    public function toggleLikeMedia($request)
     {
         $validator = Validator::make(
             $request->all(),
