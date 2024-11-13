@@ -60,7 +60,7 @@ class LikeRepository implements LikeInterface
                     $exist = $existingLike->delete();
                     if ($exist) {
                         Media::where('id', $mediaId)->decrement('like_count');
-                        // RedisHelper::dropKeys($this->generalRedisKeys);
+                        RedisHelper::dropKeys($this->generalRedisKeys);
                         return $this->success("Unlike", "Berhasil melakukan Unlike!");
                     }
                 } else {
@@ -74,7 +74,7 @@ class LikeRepository implements LikeInterface
                     $create =   $newLike->save();
                     if ($create) {
                         Media::where('id', $mediaId)->increment('like_count');
-                        // RedisHelper::dropKeys($this->generalRedisKeys);
+                        RedisHelper::dropKeys($this->generalRedisKeys);
                         return $this->success("Like berhasil direkam!", $newLike);
                     }
                 }
