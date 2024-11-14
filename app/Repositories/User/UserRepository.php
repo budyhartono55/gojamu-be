@@ -34,26 +34,27 @@ class UserRepository implements UserInterface
     {
         try {
             $limit = Helper::limitDatas($request);
-            $keyOne = $this->keyRedis . "getAll" . request()->get('page', 1) .  "#limit" . $limit;
-            if (Redis::exists($keyOne)) {
-                $result = json_decode(Redis::get($keyOne));
-                return $this->success("List Data user from (CACHE)", $result);
+            $currentPage = request()->get('page', 1);
+            $keyOne = "{$this->keyRedis}getAll#page{$currentPage}#limit{$limit}";
+
+            // Periksa cache Redis
+            $cachedData = Redis::get($keyOne);
+            if ($cachedData) {
+                $result = json_decode($cachedData);
+                return $this->success("List Data User from CACHE", $result);
             }
+
+            // Ambil data dari database
             $datas = User::latest()->paginate($limit);
             $data = Helper::queryModifyUserForDatas($datas, true);
 
+            // Simpan data ke Redis
             Redis::set($keyOne, json_encode($data));
-            Redis::expire($keyOne, $this->expired); // Cache for 60 seconds
-            return $this->success("List Data User", $data);
+            Redis::expire($keyOne, $this->expired); // Cache sesuai dengan waktu kedaluwarsa
 
-            // $data = User::all();
-            // return $this->success(
-            //     " List semua data User",
-            //     $data
-            // );
-        } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->success("List Data User", $data);
+        } catch (\Throwable $e) { // Gunakan \Throwable untuk menangkap semua jenis error
+            return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
 
@@ -61,26 +62,27 @@ class UserRepository implements UserInterface
     {
         try {
             $limit = Helper::limitDatas($request);
-            $keyOne = $this->keyRedis . "getAllTrash" . request()->get('page', 1) . $limit;
-            if (Redis::exists($keyOne)) {
-                $result = json_decode(Redis::get($keyOne));
-                return $this->success("List Data Trash user  from (CACHE)", $result);
+            $currentPage = request()->get('page', 1);
+            $keyOne = "{$this->keyRedis}getAllTrash#page{$currentPage}#limit{$limit}";
+
+            // Periksa cache Redis
+            $cachedData = Redis::get($keyOne);
+            if ($cachedData) {
+                $result = json_decode($cachedData);
+                return $this->success("List Data Trash User from CACHE", $result);
             }
+
+            // Ambil data dari database (hanya yang soft deleted)
             $datas = User::onlyTrashed()->latest()->paginate($limit);
             $data = Helper::queryModifyUserForDatas($datas, true);
 
+            // Simpan data ke Redis dengan waktu kedaluwarsa
             Redis::set($keyOne, json_encode($data));
-            Redis::expire($keyOne, $this->expired); // Cache for 60 seconds
-            return $this->success("List Data Trash User", $data);
+            Redis::expire($keyOne, $this->expired);
 
-            // $data = User::all();
-            // return $this->success(
-            //     " List semua data User",
-            //     $data
-            // );
-        } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->success("List Data Trash User", $data);
+        } catch (\Throwable $e) { // Tangkap semua jenis error
+            return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
 
@@ -88,37 +90,36 @@ class UserRepository implements UserInterface
     public function getById($id)
     {
         try {
-            $keyOne = $this->keyRedis . "getById-" . Str::slug($id);
-            if (Redis::exists($keyOne)) {
-                $result = json_decode(Redis::get($keyOne));
-                return $this->success("User dengan ID = ($id) from (CACHE)", $result);
+            // Pastikan hanya Admin atau pemilik akun yang dapat mengakses
+            $currentUser = auth()->user();
+            if ($currentUser->id !== $id && $currentUser->role !== "Admin") {
+                return $this->error("Unauthorized", "Anda tidak memiliki hak untuk melihat data ini!", 403);
             }
 
+            // Key Redis untuk cache
+            $keyOne = "{$this->keyRedis}getById-" . Str::slug($id);
+
+            // Periksa cache Redis
+            $cachedData = Redis::get($keyOne);
+            if ($cachedData) {
+                $result = json_decode($cachedData);
+                return $this->success("User dengan ID = ($id) from CACHE", $result);
+            }
+
+            // Ambil data dari database
             $datas = User::find($id);
-
-
-            if (!empty($datas)) {
-
-                if ($datas->id != auth()->user()->id) {
-                    return $this->error("Unauthorized", "Anda tidak memiliki hak untuk mengedit data ini!", 403);
-                }
-
-                $data = Helper::queryModifyUserForDatas($datas);
-                Redis::set($keyOne, json_encode($data));
-                Redis::expire($keyOne, $this->expired); // Cache for 60 seconds
-                return $this->success("User Dengan ID = ($id)", $data);
+            if (!$datas) {
+                return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
             }
-            return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
 
-            // $data = User::find($id);
+            // Modifikasi data dan simpan ke Redis
+            $data = Helper::queryModifyUserForDatas($datas);
+            Redis::set($keyOne, json_encode($data));
+            Redis::expire($keyOne, $this->expired);
 
-            // // Check the user
-            // if (!$data) return $this->error("User dengan ID = ($id) tidak ditemukan!", 404);
-
-            // return $this->success("Detail User", $data);
-        } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->success("User dengan ID = ($id)", $data);
+        } catch (\Throwable $e) {
+            return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
 
@@ -177,12 +178,19 @@ class UserRepository implements UserInterface
         $validator = Validator::make($request->all(), [
             'name'     => 'required',
             'email'     => 'email',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3000'
+            'image'           => 'image|mimes:jpeg,png,jpg|max:3000'
         ]);
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
         try {
+
+            $user = Auth::user();
+
+            // Pastikan hanya pengguna saat ini yang dapat mengubah datanya sendiri
+            if ($user->id != $id) {
+                return $this->error("Unauthorized", "Anda tidak memiliki izin untuk mengubah password pengguna lain!", 403);
+            }
 
             // search
             $datas = User::find($id);
@@ -321,39 +329,47 @@ class UserRepository implements UserInterface
     public function changePassword($request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'new_password'           => 'required',
-            'old_password'           => 'required',
-            'confirm_password' => 'required|same:old_password',
-
+            'new_password'    => 'required',
+            'old_password'    => 'required',
+            'confirm_password' => 'required|same:new_password',
         ]);
+
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
-        try {
 
-            // search
+        try {
+            $user = Auth::user();
+
+            // Pastikan hanya pengguna saat ini yang dapat mengubah datanya sendiri
+            if ($user->id != $id) {
+                return $this->error("Unauthorized", "Anda tidak memiliki izin untuk mengubah password pengguna lain!", 403);
+            }
+
+            // Cari data pengguna berdasarkan ID
             $datas = User::find($id);
             if (!$datas) {
                 return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            if (Hash::check($request->old_password, $datas->password)) {
-
-                $datas['password'] = bcrypt($request->new_password);
-                $datas['updated_by'] = Auth::user()->id;
-
-                // update datas
-                if ($datas->save()) {
-                    Helper::deleteRedis($this->keyRedis . "*");
-                    return $this->success("Password Berhasil diperbaharui!", $datas);
-                }
-
-                return $this->error("FAILED", "Password Gagal diperbaharui!", 400);
+            // Validasi password lama
+            if (!Hash::check($request->old_password, $datas->password)) {
+                return $this->error("FAILED", "Password Lama Salah", 422);
             }
-            return $this->error("FAILED", "Password Lama Salah", 422);
+
+            // Update password
+            $datas->password = bcrypt($request->new_password);
+            $datas->updated_by = $user->id;
+
+            if ($datas->save()) {
+                // Hapus cache jika ada
+                Helper::deleteRedis($this->keyRedis . "*");
+                return $this->success("Password Berhasil diperbaharui!", $datas);
+            }
+
+            return $this->error("FAILED", "Password Gagal diperbaharui!", 400);
         } catch (Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e->getMessage());
+            return $this->error("Error", $e->getMessage(), 500);
         }
     }
 
