@@ -86,6 +86,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::delete("/user/permanent/{id}", [UserController::class, "deletePermanent"])->name("deleteUserPermanent");
     // RESET
     Route::patch("/user/reset/{id}", [UserController::class, "resetPassword"])->name("resetPassword");
+    Route::patch("/user/status/{id}", [UserController::class, "statusUser"])->name("statusUser");
 
     // =======================================================================================================
     // N E W S

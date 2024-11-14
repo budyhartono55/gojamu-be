@@ -66,4 +66,8 @@ class UserController extends Controller
     {
         return $this->userRepository->resetPassword($id);
     }
+    public function statusUser($id)
+    {
+        return $this->userRepository->statusUser($id);
+    }
 }

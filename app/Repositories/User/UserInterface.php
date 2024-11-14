@@ -15,4 +15,5 @@ interface UserInterface
     public function restoreById($id);
     public function changePassword($request, $id);
     public function resetPassword($id);
+    public function statusUser($id);
 }

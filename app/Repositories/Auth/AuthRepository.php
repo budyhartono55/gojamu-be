@@ -18,11 +18,14 @@ use App\Models\Setting;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\resetPassword;
 use Carbon\Carbon;
+use App\Helpers\Helper;
+
 
 class AuthRepository implements AuthInterface
 {
     private $User;
     private $otp;
+    private $keyRedis = "user-";
     use API_response;
 
     public function __construct(User $User)
@@ -34,9 +37,9 @@ class AuthRepository implements AuthInterface
     public function register($request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required',
-            'username' => 'required|unique:users',
-            'email' => 'required|email|unique:users',
+            'name' => 'required|string|max:255',
+            'username' => 'required|string|max:255|unique:users',
+            'email' => 'required|email|max:255|unique:users',
             'password' => [
                 'required',
                 'min:8',
@@ -45,26 +48,38 @@ class AuthRepository implements AuthInterface
             'confirm_password' => 'required|same:password'
         ]);
 
+        // Jika validasi gagal
         if ($validator->fails()) {
             return $this->error("Validation Error", $validator->errors(), 422);
         }
 
         try {
-            // Prepare input data
-            $input = $request->all();
-            $input['password'] = bcrypt($input['password']);
+            $data = [
+                'name' => $request->name,
+                'username' => $request->username,
+                'email' => $request->email,
+                'jenis_kelamin' => $request->jenis_kelamin,
+                'tentang' => $request->tentang,
+                'password' => bcrypt($request->password),
+                'address' => $request->address,
+                'contact' => $request->contact
 
-            // Create the user
-            $user = User::create($input);
+            ];
+            // Buat pengguna baru
+            $user = User::create($data);
+            Helper::deleteRedis($this->keyRedis . "*");
 
-            // Prepare success response
+            // Jika token dibutuhkan, Anda bisa menambahkan ini (komentar jika tidak digunakan)
+            // $token = $user->createToken('auth_token')->plainTextToken;
+
+            // Persiapkan respons sukses
             $success = [
                 'name' => $user->name,
-                // 'token' => $user->createToken('auth_token')->plainTextToken // Uncomment if you want to generate a token upon registration
+                // 'token' => $token // Uncomment untuk token
             ];
 
-            return $this->success("Registration Successful!", $success);
-        } catch (\Exception $e) {
+            return $this->success("Registrasi Berhasil!", $success);
+        } catch (\Throwable $e) { // Menangani semua jenis error (Exception atau Error)
             return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
@@ -73,10 +88,11 @@ class AuthRepository implements AuthInterface
     public function login($request)
     {
         $validator = Validator::make($request->all(), [
-            'username' => 'required',
-            'password' => 'required',
+            'username' => 'required|string',
+            'password' => 'required|string',
         ]);
 
+        // Jika validasi gagal
         if ($validator->fails()) {
             return $this->error("Validator failed!", $validator->errors(), 422);
         }
@@ -90,8 +106,11 @@ class AuthRepository implements AuthInterface
 
                 // Get the authenticated user
                 $auth = Auth::user();
-
-                // Generate token and update last_login
+                // Check if the user is active, if not return an error
+                if ($auth->active != 1) {
+                    return $this->error("Akun Anda tidak aktif", "Akun Anda tidak aktif. Silakan hubungi Administrator.", 403);
+                }
+                // Update last login time
                 $auth->last_login = Carbon::now();
                 $auth->save();
 
@@ -106,7 +125,7 @@ class AuthRepository implements AuthInterface
             } else {
                 return $this->error("Login Failed", "Incorrect username or password", 400);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 500);
         }
     }
@@ -115,13 +134,21 @@ class AuthRepository implements AuthInterface
     public function logout($request)
     {
         try {
-            // auth()->user()->currentAccessToken()->delete();
+            // Hapus semua token pengguna yang sedang aktif
             $request->user('sanctum')->tokens()->delete();
-            return $this->success("Logout Berhasil!", "Logout Berhasil");
-        } catch (\Exception $e) {
-            // return $this->error($e->getMessage(), $e->getCode());
-            return $this->error("Internal Server Error!", $e);
+            return $this->success("Logout Berhasil!", "Anda telah logout.");
+        } catch (\Throwable $e) {
+            return $this->error("Internal Server Error!", $e->getMessage(), 500);
         }
+
+        // try {
+        //     // auth()->user()->currentAccessToken()->delete();
+        //     $request->user('sanctum')->tokens()->delete();
+        //     return $this->success("Logout Berhasil!", "Logout Berhasil");
+        // } catch (\Exception $e) {
+        //     // return $this->error($e->getMessage(), $e->getCode());
+        //     return $this->error("Internal Server Error!", $e);
+        // }
     }
 
     public function changePassword($request)

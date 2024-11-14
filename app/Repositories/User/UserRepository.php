@@ -131,6 +131,7 @@ class UserRepository implements UserInterface
             'email'     => 'required|unique:users',
             'password'           => 'required',
             'jenis_kelamin'           => 'required',
+            'active'           => 'required',
             'confirm_password' => 'required|same:password',
             'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072'
         ]);
@@ -153,6 +154,7 @@ class UserRepository implements UserInterface
                 'contact' => $request->contact,
                 'id_belajar' => $request->id_belajar,
                 'role' => $request->role,
+                'active' => $request->active,
                 'created_by' => Auth::user()->id
 
             ];
@@ -214,15 +216,16 @@ class UserRepository implements UserInterface
 
             $fileName = $request->hasFile('image') ? "user_" . time() . "." . $request->image->getClientOriginalExtension() : "";
 
-            $datas['name'] = $request->name;
-            $datas['username'] = $request->username == "" ? $datas->username : $request->username;
-            $datas['email'] = $request->email == "" ? $datas->email : $request->email;
-            $datas['address'] = $request->address;
-            $datas['contact'] = $request->contact;
-            $datas['jenis_kelamin'] = $request->jenis_kelamin;
-            $datas['tentang'] = $request->tentang;
-            $datas['id_belajar'] = $request->id_belajar;
-            $datas['role'] = $request->role;
+            $datas['name'] = $request->name ?: $datas->name;;
+            $datas['username'] = $request->username ?: $datas->username;
+            $datas['email'] = $request->email ?: $datas->email;
+            $datas['address'] = $request->address ?: $datas->address;;
+            $datas['contact'] = $request->contact ?: $datas->contact;
+            $datas['jenis_kelamin'] = $request->jenis_kelamin ?: $datas->jenis_kelamin;
+            $datas['tentang'] = $request->tentang ?: $datas->tentang;
+            $datas['id_belajar'] = $request->id_belajar ?: $datas->id_belajar;
+            $datas['role'] = $request->role ?: $datas->role;
+            $datas['active'] = $request->active ?: $datas->active;
             $datas['edited_by'] = Auth::user()->id;;
             if ($request->hasFile('image')) {
                 // Old iamge delete
@@ -397,6 +400,33 @@ class UserRepository implements UserInterface
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
             return $this->error("Internal Server Error!", $e->getMessage());
+        }
+    }
+
+    public function statusUser($id)
+    {
+
+        try {
+
+            // search
+            $datas = User::find($id);
+            if (!$datas) {
+                return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
+            }
+
+            $datas['active'] = (int)!$datas->active;
+            $datas['edited_by'] = Auth::user()->id;
+
+            // update datas
+            if ($datas->save()) {
+                Helper::deleteRedis($this->keyRedis . "*");
+                return $this->success("Status User  Berhasil diubah!", $datas);
+            }
+
+            return $this->error("FAILED", "Status User Gagal direset!", 400);
+        } catch (Exception $e) {
+            // return $this->error($e->getMessage(), $e->getCode());
+            return $this->error("Internal Server Error!" . $e->getMessage(), $e->getMessage());
         }
     }
 }

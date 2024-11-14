@@ -46,6 +46,7 @@ class BookRepository implements BookInterface
             $getByFilter = $request->filter;
             $getByTopics = $request->topics;
             $getByUser = $request->user_id;
+            $getFavoriteByUser = $request->book_user_id;
             $getRead = $request->read;
             $getById = $request->id;
             $getTrash = $request->trash;
@@ -54,7 +55,7 @@ class BookRepository implements BookInterface
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
+            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  . ",#FavoriteUser=" . $getFavoriteByUser . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
             $user = Auth::user(); // Get the currently authenticated user
             $statusLogin = !Auth::check() ? "-public-" : $user->username;
@@ -103,6 +104,13 @@ class BookRepository implements BookInterface
             if ($request->filled('topics')) {
                 $query->whereHas('topics', function ($queryTopic) use ($request) {
                     return $queryTopic->where('slug', Str::slug($request->topics));
+                });
+            }
+
+            // Step 5: Apply category filter
+            if ($request->filled('favorite_user_id')) {
+                $query->whereHas('favoritedBy', function ($queryFavorite) use ($request) {
+                    return $queryFavorite->where('user_id', $request->favorite_user_id);
                 });
             }
 

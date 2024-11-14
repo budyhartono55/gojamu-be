@@ -34,13 +34,19 @@ class UserSeeder extends Seeder
         // }
 
         DB::table('users')->insert([
-            'id' => '343435fdgdg45451',
-            'name' => 'dev',
-            'username' => 'dev',
-            'email' => 'operator@tes.com',
+            'id' => '275a3671-7662-4062-8d6b-9831f7e24827',
+            'name' => 'admin',
+            'username' => 'admin',
+            'email' => 'admin@gmail.com',
             'address' => 'Sumbawa Barat',
+            'jenis_kelamin' => 'Laki-laki',
             'contact' => '8798734879',
-            'password' => bcrypt('dev123'),
+            'password' => bcrypt('Qwerty123456!'),
+            'role' => 'Admin',
+            'id_belajar' => 'Tidak',
+            'active' => 1,
+            'created_at' => now(),
+
         ]);
     }
 }
