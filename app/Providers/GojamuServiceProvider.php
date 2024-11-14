@@ -84,6 +84,18 @@ class GojamuServiceProvider extends ServiceProvider
             'App\Repositories\Media\MediaRepository'
         );
 
+        // COMMENT ================
+        $this->app->bind(
+            'App\Repositories\Comment\CommentInterface',
+            'App\Repositories\Comment\CommentRepository'
+        );
+
+        // LIKE ================
+        $this->app->bind(
+            'App\Repositories\Like\LikeInterface',
+            'App\Repositories\Like\LikeRepository'
+        );
+
         // CTG_GALLERY ================
         $this->app->bind(
             'App\Repositories\Ctg_Gallery\Ctg_GalleryInterface',

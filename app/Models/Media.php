@@ -26,6 +26,10 @@ class Media extends Model
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
+    public function likedByUsers()
+    {
+        return $this->belongsToMany(User::class, 'like', 'media_id', 'user_id');
+    }
     public function topics()
     {
         // return $this->belongsTo(Topic::class, 'topic_id', 'id');

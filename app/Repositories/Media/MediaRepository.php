@@ -20,6 +20,8 @@ use App\Helpers\RedisHelper;
 use App\Helpers\Helper;
 use App\Models\CtgMedia;
 use App\Models\Topic;
+use App\Models\Like;
+use App\Models\Comment;
 use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
@@ -75,12 +77,20 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Keseluruhan Konten/Media", $result);
             }
 
-            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
-                $query->select('id', 'title', 'slug');
-            }])
+            $userId = Auth::id();
+            $media = Media::with([
+                'createdBy',
+                'editedBy',
+                'ctgMedias',
+                'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }
+            ])
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate(12);
-
             //clear eager load topics
             foreach ($media->items() as $mediaItem) {
                 foreach ($mediaItem->topics as $topic) {
@@ -124,7 +134,7 @@ class MediaRepository implements MediaInterface
             if (!$category) {
                 return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
             }
-
+            $userId = Auth::id();
             $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
                 $query->select('id', 'title', 'slug');
             }])
@@ -133,6 +143,9 @@ class MediaRepository implements MediaInterface
                     $query->where('title_media', 'LIKE', '%' . $keyword . '%')
                         ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate($limit);
 
@@ -179,12 +192,16 @@ class MediaRepository implements MediaInterface
                 $result = json_decode(Redis::get($key . $slug));
                 return $this->success("(CACHE): List Keseluruhan Konten/Media berdasarkan Kategori Konten/Media dengan slug = ($slug).", $result);
             }
+            $userId = Auth::id();
             $category = CtgMedia::where('slug', $slug)->first();
             if ($category) {
                 $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
                     $query->select('id', 'title', 'slug');
                 }])
                     ->where('ctg_media_id', $category->id)
+                    ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                        $query->where('user_id', $userId);
+                    }])
                     ->latest('created_at')
                     ->paginate($limit);
 
@@ -230,12 +247,17 @@ class MediaRepository implements MediaInterface
                 return $this->success("(CACHE): List Konten/Media dengan keyword = ($keyword).", $result);
             }
 
+            $userId = Auth::id();
             $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
                 $query->select('id', 'title', 'slug');
-            }])->where(function ($query) use ($keyword) {
-                $query->where('title_media', 'LIKE', '%' . $keyword . '%')
-                    ->orWhere('description', 'LIKE', '%' . $keyword . '%');
-            })
+            }])
+                ->where(function ($query) use ($keyword) {
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+                })
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate($limit);
 
@@ -282,8 +304,14 @@ class MediaRepository implements MediaInterface
                 $result = json_decode(Redis::get($key . $id));
                 return $this->success("(CACHE): Detail Konten/Media dengan ID = ($id)", $result);
             }
+            $userId = Auth::id();
 
-            $media = Media::find($id);
+            // Menggunakan withCount untuk cek liked_stat
+            $media = Media::withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                $query->where('user_id', $userId);
+            }])
+                ->find($id);
+
             if ($media) {
                 $createdBy = User::select('name')->find($media->created_by);
                 $editedBy = User::select('name')->find($media->edited_by);
@@ -296,6 +324,30 @@ class MediaRepository implements MediaInterface
                 $media->topics = $topics->map(function ($topic) {
                     return $topic->only(['id', 'title', 'slug']);
                 });
+
+                $userId = Auth::id();
+                if ($userId) {
+                    $liked = Like::where('user_id', $userId)->where('media_id', $id)->exists();
+                    $media->liked_stat = $liked ? 1 : 0;
+                } else {
+                    $media->liked_stat = 0;
+                }
+
+                $comments = $media->comments()
+                    ->with(['users:id,name', 'replies.users:id,name'])
+                    ->whereNull('parent_id')
+                    ->get();
+
+                $comments->each(function ($comment) {
+                    $comment->user_name = $comment->users->name;
+                    unset($comment->users);
+                    $comment->replies->each(function ($reply) {
+                        $reply->user_name = $reply->users->name;
+                        unset($reply->users);
+                    });
+                });
+
+                $media->comments = $comments;
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));

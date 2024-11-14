@@ -11,6 +11,8 @@ use App\Http\Controllers\Api\Ctg_ServiceController;
 use App\Http\Controllers\Api\ServiceController;
 use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\CommentController;
+use App\Http\Controllers\Api\LikeController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\Ctg_NewsController;
 use App\Http\Controllers\Api\GalleryController;
@@ -137,32 +139,43 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/service/{id}", [ServiceController::class, "drop"])->name("deleteService");
 
-
-    Route::middleware(['isAkses:Admin'])->group(function () {
-
-        // =======================================================================================================
-        // CTG_Media
-        // //GET
-        Route::get("/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
-        Route::get("/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
-        // POST
-        Route::post("/ctg-media", [CtgMediaController::class, "insert"])->name("createCtgMedia");
-        // PATCH
-        Route::patch("/ctg-media/{id}", [CtgMediaController::class, "edit"])->name("editCtgMedia");
-        // DELETE
-        Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
-        // =======================================================================================================
-        // Service
-        // //GET
-        Route::get("/media", [MediaController::class, "index"])->name("media");
-        Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
-        // POST
-        Route::post("/media", [MediaController::class, "insert"])->name("createMedia");
-        // PATCH
-        Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
-        // DELETE
-        Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
-    });
+    // =======================================================================================================
+    // CTG_Media
+    // //GET
+    Route::get("/ctg-media", [CtgMediaController::class, "index"])->name("Ctg-media");
+    Route::get("/ctg-media/{id}", [CtgMediaController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/ctg-media", [CtgMediaController::class, "insert"])->name("createCtgMedia");
+    // PATCH
+    Route::patch("/ctg-media/{id}", [CtgMediaController::class, "edit"])->name("editCtgMedia");
+    // DELETE
+    Route::delete("/ctg-media/{id}", [CtgMediaController::class, "drop"])->name("deleteCtgMedia");
+    // =======================================================================================================
+    // MEDIA
+    // //GET
+    Route::get("/media", [MediaController::class, "index"])->name("media");
+    Route::get("/media/{id}", [MediaController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/media", [MediaController::class, "insert"])->name("createMedia");
+    // PATCH
+    Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
+    // DELETE
+    Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
+    // =======================================================================================================
+    // Comment
+    // //GET
+    Route::get("/media/comment", [CommentController::class, "index"])->name("comment");
+    Route::get("/media/comment/{id}", [CommentController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/media/comment", [CommentController::class, "insert"])->name("createComment");
+    // PATCH
+    Route::patch("/media/comment/{id}", [CommentController::class, "edit"])->name("editComment");
+    // DELETE
+    Route::delete("/media/comment/{id}", [CommentController::class, "drop"])->name("deleteComment");
+    // =======================================================================================================
+    // LIKE
+    // POST
+    Route::post("/media/like", [LikeController::class, "insert"])->name("createLike");
     // =======================================================================================================
     // CTG_GALLERY
     // //GET
