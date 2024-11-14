@@ -45,6 +45,7 @@ class BookRepository implements BookInterface
             $getByCategory = $request->category;
             $getByFilter = $request->filter;
             $getByTopics = $request->topics;
+            $getByUser = $request->user_id;
             $getRead = $request->read;
             $getById = $request->id;
             $getTrash = $request->trash;
@@ -53,7 +54,7 @@ class BookRepository implements BookInterface
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
+            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
             $user = Auth::user(); // Get the currently authenticated user
             $statusLogin = !Auth::check() ? "-public-" : $user->username;
@@ -110,7 +111,10 @@ class BookRepository implements BookInterface
                 $filter = $getByFilter == "top" ? 'views' : 'posted_at';
                 $query->orderBy($filter, $order);
             }
-
+            // Step 6: Apply custom filter for sorting
+            if ($request->filled('user_id')) {
+                $query->where('created_by', $getByUser)->get();
+            }
             // Step 7: Apply read filter and increment views if not already viewed
             if ($request->filled('read')) {
                 $bookItem = $query->where('slug', $getRead)->first();
@@ -124,6 +128,7 @@ class BookRepository implements BookInterface
                     }
                 }
             }
+
 
             // Step 8: Apply id filter and increment views if not already viewed
             if ($request->filled('id')) {
@@ -276,7 +281,7 @@ class BookRepository implements BookInterface
         }
 
         try {
-            // Step 3: Find the book record by ID
+            // Step 3: Find the book recordy by ID
             $book = Book::find($id);
             if (!$book) {
                 return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
