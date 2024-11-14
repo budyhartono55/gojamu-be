@@ -19,9 +19,9 @@ return new class extends Migration
             $table->text("description")->nullable();
             $table->text("ytb_url")->nullable();
             $table->date("posted_at")->nullable();
-            $table->string("like_count")->nullable();
-            $table->string("comment_count")->nullable();
-            $table->string("rate_count")->nullable();
+            $table->integer("like_count")->default(0);
+            $table->integer("comment_count")->default(0);
+            $table->integer("rate_count")->default(0);
             $table->string("report_stat")->nullable();
             $table->string("user_id")->nullable();
             $table->string("ctg_media_id")->nullable();
