@@ -9,25 +9,30 @@ use Illuminate\Support\Facades\Auth;
 class AuthHelper
 {
 
-    public static function isAdmin()
+    public static function hasRole($role)
     {
-        return auth()->user()->role == "Admin" ? true : false;
+        return auth()->user()->role === $role;
     }
 
+    // Aliases for specific roles
+    public static function isAdmin()
+    {
+        return self::hasRole('Admin');
+    }
 
     public static function isGuru()
     {
-        return auth()->user()->role == "Guru" ? true : false;
+        return self::hasRole('Guru');
     }
 
     public static function isMurid()
     {
-        return auth()->user()->role == "Murid" ? true : false;
+        return self::hasRole('Murid');
     }
 
     public static function isUmum()
     {
-        return auth()->user()->role == "Umum" ? true : false;
+        return self::hasRole('Umum');
     }
 
     // public static function ownerPenduduk($id, $hasId = true, $trash = false)

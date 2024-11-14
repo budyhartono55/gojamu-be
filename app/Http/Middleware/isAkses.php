@@ -19,11 +19,15 @@ class isAkses
     public function handle(Request $request, Closure $next, $aksesAllowList)
     {
         $aksesCurrent = auth()->user()->role;
-        // $listAkses = ['SuperAdmin', 'Admin', 'Operator', 'Verifikator', 'Tamu'];
-        $aksesAllow = explode("|", $aksesAllowList);
-        if (in_array($aksesCurrent, $aksesAllow)) {
-            return $next($request);
+
+        // Konversi daftar akses yang diizinkan menjadi array
+        $aksesAllow = explode('|', $aksesAllowList);
+
+        if (!in_array($aksesCurrent, $aksesAllow)) {
+            return $this->error("Unauthorized", "Akses Tidak diizinkan!", 403);
         }
-        return $this->error("Unauthorized", "Akses Tidak diijinkan!", 403);
+
+        // Jika role diizinkan, lanjutkan request
+        return $next($request);
     }
 }
