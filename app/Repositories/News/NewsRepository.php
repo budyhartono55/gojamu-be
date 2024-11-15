@@ -57,12 +57,12 @@ class NewsRepository implements NewsInterface
                 $result = json_decode(Redis::get($key));
                 return $this->success("List Berita By {$params} from (CACHE)", $result);
             }
-
+            $sqlQuery = News::with(['ctg_news'])->orderBy('posted_at', $order);
             // Step 3: Set the query based on trash filter
             if ($request->filled('trash') && $request->trash == "true") {
-                $query = News::onlyTrashed()->with(['ctg_news'])->orderBy('posted_at', $order);
+                $query = $sqlQuery->onlyTrashed();
             } else {
-                $query = News::with(['ctg_news'])->orderBy('posted_at', $order);
+                $query = $sqlQuery;
             }
 
             // Step 4: Apply search filter

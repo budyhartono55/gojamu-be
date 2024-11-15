@@ -70,4 +70,8 @@ class UserController extends Controller
     {
         return $this->userRepository->statusUser($id);
     }
+    public function instruktor(Request $request)
+    {
+        return $this->userRepository->instruktor($request);
+    }
 }

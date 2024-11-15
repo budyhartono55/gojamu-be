@@ -16,4 +16,5 @@ interface UserInterface
     public function changePassword($request, $id);
     public function resetPassword($id);
     public function statusUser($id);
+    public function instruktor($request);
 }

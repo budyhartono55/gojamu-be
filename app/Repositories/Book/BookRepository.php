@@ -50,12 +50,11 @@ class BookRepository implements BookInterface
             $getRead = $request->read;
             $getById = $request->id;
             $getTrash = $request->trash;
-            $getEvent = $request->event;
             $page = $request->page;
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  . ",#FavoriteUser=" . $getFavoriteByUser . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
+            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  . ",#FavoriteUser=" . $getFavoriteByUser . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
             $user = Auth::user(); // Get the currently authenticated user
             $statusLogin = !Auth::check() ? "-public-" : $user->username;

@@ -429,4 +429,113 @@ class UserRepository implements UserInterface
             return $this->error("Internal Server Error!" . $e->getMessage(), $e->getMessage());
         }
     }
+
+    public function instruktor($request)
+    {
+        try {
+            // Step 1: Get limit from helper or set default
+            $limit = Helper::limitDatas($request);
+
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
+            $getSearch = $request->search;
+            $getByCategory = $request->category;
+            $getByFilter = $request->filter;
+            $getByTopics = $request->topics;
+            $getByUser = $request->user_id;
+
+            $page = $request->page;
+            $paginate = $request->paginate;
+            // $clientIpAddress = $request->getClientIp();
+
+            $params =  ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  .  ",#Search=" . $getSearch;
+
+            $key = $this->keyRedis . "Instruktor" . request()->get('page', 1) . "#params" . $params;
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("List Data Instruktor By {$params} from (CACHE)", $result);
+            }
+
+            // Ambil data dari database
+            $query = User::whereHas('medias')->with('medias');
+
+            // Step 4: Apply search filter
+            if ($request->filled('user_id')) {
+                $query->where('id',  $getByUser);
+            }
+
+            // Step 5: Apply category filter
+            if ($request->filled('category')) {
+                $query->whereHas('ctg_book', function ($queryCategory) use ($request) {
+                    return $queryCategory->where('slug', Str::slug($request->category));
+                });
+            }
+
+            // Step 9: Paginate or limit the results
+            if ($request->filled('paginate') && $paginate == "true") {
+                $setPaginate = true;
+                $result = $query->paginate($limit);
+            } else {
+                $setPaginate = false;
+                $result = $query->limit($limit)->get();
+            }
+            // $data = Helper::queryModifyUserForDatas($datas, true);
+
+            $datas = Self::queryGetModify($result, $setPaginate, true);
+
+            // Step 11: Cache the results in Redis
+            Redis::set($key, json_encode($datas));
+            Redis::expire($key,  $this->expired);
+
+            return $this->success("List Data Instruktor", $datas);
+        } catch (\Throwable $e) { // Gunakan \Throwable untuk menangkap semua jenis error
+            return $this->error("Internal Server Error" . $e->getMessage(), $e->getMessage(), 500);
+        }
+    }
+
+    function queryGetModify($datas, $paginate, $manyResult = false)
+    {
+        if ($datas) {
+            if ($manyResult) {
+
+                $modifiedData = $paginate ? $datas->items() : data_get($datas, '*');
+
+                $modifiedData = array_map(function ($item) {
+                    // $item->berita_link = env('NEWS_LINK') . $item->slug;
+                    self::modifyData($item);
+                    return $item;
+                }, $modifiedData);
+            } else {
+                // return $datas;
+                self::modifyData($datas);
+            }
+            return $datas;
+        }
+    }
+
+    function modifyData($item)
+    {
+
+        // $ctg_book_id = [
+        //     'id' => $item['ctg_book_id'],
+        //     'name' => self::queryGetCategory($item['ctg_book_id'])->title_category,
+        //     'slug' => self::queryGetCategory($item['ctg_book_id'])->slug,
+        // ];
+        // $item->ctg_book_id = $ctg_book_id;
+
+        // $user_id = [
+        //     'name' => Helper::queryGetUser($item['user_id']),
+        // ];
+        // $item->user_id = $user_id;
+        // $item->image = Helper::convertImageToBase64('images/', $item->image);
+        // $item = Helper::queryGetUserModify($item);
+        $item->created_by = optional($item->createdBy)->only(['id', 'name']);
+        $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+        // $item->topic->makeHidden('pivot');
+
+        unset($item->createdBy, $item->editedBy, $item->deleted_at);
+
+        return $item;
+    }
 }

@@ -72,6 +72,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::get("/user/{id}", [UserController::class, "getById"])->name("getByIdUser");
     Route::get("/user/restore", [UserController::class, "restore"])->name("getrestoreUser");
     Route::get("/user/restore/{id}", [UserController::class, "restoreById"])->name("getrestoreByIdUser");
+    Route::get("/instruktor", [UserController::class, "instruktor"])->name("getInstruktor");
 
     // POST
     Route::post("/user", [UserController::class, "save"])->name("createUser");
