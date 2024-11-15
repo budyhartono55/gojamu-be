@@ -335,9 +335,9 @@ class MediaRepository implements MediaInterface
 
                 $comments = $media->comments()
                     ->with([
-                        'users:id,name',
+                        'users:id,name,image',
                         'replies' => function ($query) {
-                            $query->with('users:id,name')
+                            $query->with('users:id,name,image')
                                 ->take(1);
                         }
                     ])
@@ -346,6 +346,7 @@ class MediaRepository implements MediaInterface
 
                 $comments->each(function ($comment) {
                     $comment->user_name = $comment->users->name;
+                    $comment->user_image = $comment->users->image;
                     unset($comment->users);
                 });
 
