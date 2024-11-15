@@ -150,7 +150,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
     // Comment
     // //GET
-    Route::get("/media/comment", [CommentController::class, "index"])->name("comment");
+    // Route::get("/media/comment", [CommentController::class, "index"])->name("comment");
     Route::get("/media/comment/{id}", [CommentController::class, "findById"])->name("findOne");
     // POST
     Route::post("/media/comment", [CommentController::class, "insert"])->name("createComment");

@@ -375,11 +375,11 @@ class MediaRepository implements MediaInterface
                 'ytb_url' =>  'required',
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama konten/media!',
+                'title_media.required' => 'Mohon masukkan nama media!',
                 'ytb_url.required' => 'URL video tidak boleh Kosong!',
-                'topic_id.required' => 'Masukkan topik konten/media!',
-                'topic_id.array' => 'Masukkan topik konten/media berupa array!',
-                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
+                'topic_id.required' => 'Masukkan topik media!',
+                'topic_id.array' => 'Masukkan topik media berupa array!',
+                'ctg_media_id.required' => 'Masukkan kategori media!',
             ]
         );
 
@@ -444,10 +444,10 @@ class MediaRepository implements MediaInterface
                 'ytb_url' =>  'required',
             ],
             [
-                'title_media.required' => 'Mohon masukkan nama konten/media!',
+                'title_media.required' => 'Mohon masukkan nama media!',
                 'ytb_url.required' => 'URL video tidak boleh Kosong!',
-                'topic_id.required' => 'Masukkan topik konten/media!',
-                'ctg_media_id.required' => 'Masukkan ketegori konten/media!',
+                'topic_id.required' => 'Masukkan topik media!',
+                'ctg_media_id.required' => 'Masukkan ketegori media!',
             ]
         );
 

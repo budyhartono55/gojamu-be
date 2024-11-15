@@ -25,7 +25,7 @@ class CommentController extends Controller
     // core
     public function index(Request $request)
     {
-        return $this->commentRepository->getComments($request);
+        // return $this->commentRepository->getComments($request);
     }
     public function findById($id)
     {
