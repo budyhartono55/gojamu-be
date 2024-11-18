@@ -24,6 +24,7 @@ class Ctg_GalleryController extends Controller
         return $this->ctg_galleryRepository->getCtg_Gallery($request);
     }
 
+
     //findOne
     public function findById($id)
     {

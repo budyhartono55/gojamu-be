@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\LikeController;
+use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\Ctg_NewsController;
 use App\Http\Controllers\Api\GalleryController;
@@ -174,6 +175,19 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/media/comment/{id}", [CommentController::class, "edit"])->name("editComment");
     // DELETE
     Route::delete("/media/comment/{id}", [CommentController::class, "drop"])->name("deleteComment");
+    // =======================================================================================================
+
+    // Report
+    // //GET
+    Route::get("/report", [ReportController::class, "index"])->name("report");
+    Route::get("/report/{id}", [ReportController::class, "findById"])->name("findOne");
+    // POST
+    Route::post("/media/report", [ReportController::class, "insert"])->name("createReport");
+    Route::post("/comment/report", [ReportController::class, "insert"])->name("createReport");
+    // PATCH
+    Route::patch("/report/{id}", [ReportController::class, "edit"])->name("editReport");
+    // DELETE
+    Route::delete("/report/{id}", [ReportController::class, "drop"])->name("deleteReport");
     // =======================================================================================================
     // LIKE
     // POST
