@@ -130,7 +130,7 @@ class ReportRepository implements ReportInterface
 
                 if ($existingReport) {
                     return $this->error(
-                        "Laporan Sudah Ada",
+                        "Laporan anda telah terdaftar",
                         "Anda telah mengirimkan laporan pada media ini, laporan Anda masih dalam review administrator.",
                         409
                     );
@@ -150,7 +150,7 @@ class ReportRepository implements ReportInterface
 
                 if ($existingReportCom) {
                     return $this->error(
-                        "Laporan Sudah Ada",
+                        "Laporan anda telah terdaftar",
                         "Anda telah mengirimkan laporan pada Komentar ini, laporan Anda masih dalam review administrator.",
                         409
                     );

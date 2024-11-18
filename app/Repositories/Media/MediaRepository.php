@@ -21,6 +21,7 @@ use App\Helpers\Helper;
 use App\Models\CtgMedia;
 use App\Models\Topic;
 use App\Models\Like;
+use App\Models\Report;
 use App\Models\Comment;
 use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
@@ -514,6 +515,9 @@ class MediaRepository implements MediaInterface
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
+
+            //syncReport
+            Report::where('media_id', $id)->delete();
             // approved
             $media->topics()->detach();
             $del = $media->delete();
@@ -522,7 +526,7 @@ class MediaRepository implements MediaInterface
                 return $this->success("COMPLETED", "Konten/Media dengan ID = ($id) Berhasil dihapus!");
             }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
 }
