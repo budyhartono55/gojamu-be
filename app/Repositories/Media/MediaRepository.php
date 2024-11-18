@@ -516,7 +516,9 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            //syncReport
+            //sync
+            Like::where('media_id', $id)->delete();
+            Comment::where('media_id', $id)->delete();
             Report::where('media_id', $id)->delete();
             // approved
             $media->topics()->detach();

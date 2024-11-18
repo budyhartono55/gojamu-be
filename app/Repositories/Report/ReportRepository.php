@@ -161,7 +161,8 @@ class ReportRepository implements ReportInterface
             $report->created_by = $user->id;
             $report->edited_by = $user->id;
 
-            if ($report->save()) {
+            $create = $report->save();
+            if ($create) {
                 if (Media::where('id', $media_id)->exists()) {
                     Media::where('id', $media_id)->increment('report_count');
                     $media = Media::find($media_id);
