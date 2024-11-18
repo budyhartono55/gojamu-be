@@ -18,7 +18,7 @@ return new class extends Migration
             $table->text("comment")->nullable();
             $table->date("posted_at")->nullable();
             $table->string("parent_id")->nullable();
-            $table->string("report_stat")->nullable();
+            $table->string("report_stat")->default("normal")->nullable();
             $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
             $table->string("created_by"); //auto generate

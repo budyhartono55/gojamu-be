@@ -5,26 +5,14 @@ namespace App\Repositories\Comment;
 use App\Repositories\Comment\CommentInterface as CommentInterface;
 use App\Models\Comment;
 use App\Models\User;
-use App\Http\Resources\CommentResource;
-use Exception;
-use Illuminate\Http\Request;
 use App\Traits\API_response;
-use Illuminate\Support\Facades\DB;
-use App\Http\Requests\CommentRequest;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
-use App\Helpers\Helper;
-use App\Models\CtgComment;
-use App\Models\Topic;
 use App\Models\Media;
+use App\Models\Report;
 use Carbon\Carbon;
-use App\Models\Wilayah\Kecamatan;
-use Illuminate\Support\Facades\Http;
-use Intervention\Image\Facades\Image;
 
 class CommentRepository implements CommentInterface
 {
@@ -114,7 +102,7 @@ class CommentRepository implements CommentInterface
             $comment->parent_id = $request->parent_id ? $request->parent_id : null;
             $comment->media_id = $mediaId;
             $comment->posted_at = Carbon::now();
-            $comment->report_stat = 'Normal'; //default
+            // $comment->report_stat = 'normal'; //default
 
             $user = Auth::user();
             $comment->user_id = $user->id;
@@ -197,6 +185,9 @@ class CommentRepository implements CommentInterface
             if (!$comment) {
                 return $this->error("Not Found", "Komentar dengan ID = ($id) tidak ditemukan!", 404);
             }
+
+            //dropReport
+            Report::where('comment_id', $id)->delete();
 
             $mediaId = $comment->media_id;
             $totalDeleted = $this->deleteNestedComments($comment);

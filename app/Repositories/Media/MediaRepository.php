@@ -393,7 +393,7 @@ class MediaRepository implements MediaInterface
             $media->description = $request->description;
             $media->ytb_url = $request->ytb_url ?? '';
             $media->posted_at = Carbon::now();
-            $media->report_stat = 'Normal'; //default
+            // $media->report_stat = 'normal'; //default
 
             //ctg_media_id
             $ctg_media_id = $request->ctg_media_id;

@@ -22,8 +22,7 @@ return new class extends Migration
             $table->integer("like_count")->default(0);
             $table->integer("comment_count")->default(0);
             $table->integer("rate_count")->default(0);
-            // $table->integer("report_count")->default(0);
-            $table->string("report_stat")->nullable();
+            $table->string("report_stat")->default("normal")->nullable();
             $table->string("user_id")->nullable();
             $table->string("ctg_media_id")->nullable();
             $table->string("created_by"); //auto generate
