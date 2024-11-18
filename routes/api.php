@@ -182,8 +182,8 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::get("/report", [ReportController::class, "index"])->name("report");
     Route::get("/report/{id}", [ReportController::class, "findById"])->name("findOne");
     // POST
-    Route::post("/media/report", [ReportController::class, "insert"])->name("createReport");
-    Route::post("/comment/report", [ReportController::class, "insert"])->name("createReport");
+    Route::post("/media/report", [ReportController::class, "insert"])->name("createReportMed");
+    Route::post("/comment/report", [ReportController::class, "insert"])->name("createReportCom");
     // PATCH
     Route::patch("/report/{id}", [ReportController::class, "edit"])->name("editReport");
     // DELETE

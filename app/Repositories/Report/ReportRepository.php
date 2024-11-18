@@ -102,11 +102,18 @@ class ReportRepository implements ReportInterface
             $report->created_by = $user->id;
             $report->edited_by = $user->id;
 
-            $create = $report->save();
-            if ($create) {
-                Media::where('id', $media_id)->increment('report_count');
+            if ($report->save()) {
+                if (Media::where('id', $media_id)->exists()) {
+                    Media::where('id', $media_id)->increment('report_count');
+                }
+                if (Comment::where('id', $comment_id)->exists()) {
+                    Comment::where('id', $comment_id)->increment('report_count');
+                }
                 RedisHelper::dropKeys($this->generalRedisKeys);
+
                 return $this->success("Laporan Berhasil ditambahkan!", $report);
+            } else {
+                return $this->error("Gagal.", "Gagal menyimpan laporan", 401);
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 499);
