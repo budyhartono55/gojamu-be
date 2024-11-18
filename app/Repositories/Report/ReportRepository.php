@@ -119,4 +119,24 @@ class ReportRepository implements ReportInterface
             return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
+    public function deleteReport($id)
+    {
+        try {
+            // search
+            $report = Report::find($id);
+            if (!$report) {
+                return $this->error("Not Found", "Laporan dengan ID = ($id) tidak ditemukan!", 404);
+            }
+            // approved
+            $mediaId = $report->media_id;
+            $del = $report->delete();
+            if ($del) {
+                Media::where('id', $mediaId)->decrement('report_count');
+                RedisHelper::dropKeys($this->generalRedisKeys);
+                return $this->success("COMPLETED", "Laporan dengan ID = ($id) Berhasil dihapus!");
+            }
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
 }

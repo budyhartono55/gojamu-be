@@ -27,4 +27,8 @@ class ReportController extends Controller
     {
         return $this->reportRepository->createReport($request);
     }
+    public function drop($id)
+    {
+        return $this->reportRepository->deleteReport($id);
+    }
 }

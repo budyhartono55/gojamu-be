@@ -180,7 +180,7 @@ class CommentRepository implements CommentInterface
             //save
             $update = $comment->save();
             if ($update) {
-                Media::where('id', $mediaId)->increment('comment_count');
+                // Media::where('id', $mediaId)->increment('comment_count');
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("Komentar Berhasil diperbaharui!", $comment);
             }

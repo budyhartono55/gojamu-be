@@ -10,5 +10,5 @@ interface ReportInterface
     // public function getReport($request);
     // public function findById($id);
     public function createReport($request);
-    // public function deleteReport($id);
+    public function deleteReport($id);
 }
