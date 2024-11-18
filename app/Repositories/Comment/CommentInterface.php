@@ -7,7 +7,7 @@ use Illuminate\Http\Request;
 interface CommentInterface
 {
     // getAll
-    public function getComments($request);
+    // public function getComments($request);
     public function findById($id);
     // insertData
     public function createComment($request);
