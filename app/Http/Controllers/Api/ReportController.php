@@ -19,9 +19,12 @@ class ReportController extends Controller
     //M E T H O D E ======================
     public function index(Request $request)
     {
-        // return $this->reportRepository->getReport($request);
+        return $this->reportRepository->getReport($request);
     }
-
+    public function findById($id)
+    {
+        // return $this->reportRepository->findById($id);
+    }
     // create
     public function insert(Request $request)
     {

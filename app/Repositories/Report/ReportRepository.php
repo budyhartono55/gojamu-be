@@ -12,6 +12,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
+use App\Helpers\Helper;
+
 
 
 
@@ -27,6 +29,63 @@ class ReportRepository implements ReportInterface
     {
         $this->report = $report;
         $this->generalRedisKeys = "report_";
+    }
+
+    public function getReport($request)
+    {
+        $limit = Helper::limitDatas($request);
+        // $getStat = $request->status;
+
+        if (!empty($getStat)) {
+            // return self::getReportStat($$getStat, $limit);
+        } elseif (!empty($getKeyword)) {
+            // return self::getAllServiceByKeyword($getKeyword, $limit);
+        } else {
+            return self::getAllReport();
+        }
+    }
+
+    public function getAllReport()
+    {
+        try {
+            $type = request()->get('type');
+            $page = request()->get('page', 1);
+
+            $keyPrefix = Auth::check() ? $this->generalRedisKeys . "auth_All_" : $this->generalRedisKeys . "public_All_";
+            $key = $keyPrefix . $type . "_" . $page;
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                $cacheMessage = ($type === 'media') ?
+                    "(CACHE): List Keseluruhan Laporan Media" : (($type === 'comment') ? "(CACHE): List Keseluruhan Laporan Komentar" : "(CACHE): List Keseluruhan Laporan");
+
+                return $this->success($cacheMessage, $result);
+            }
+
+            $reportQuery = Report::with(['createdBy', 'editedBy']);
+            if ($type === 'media') {
+                $reportQuery->whereNotNull('media_id')->whereNull('comment_id');
+            } elseif ($type === 'comment') {
+                $reportQuery->whereNotNull('comment_id')->whereNull('media_id');
+            }
+            $report = $reportQuery->latest('created_at')->paginate(12);
+
+            if ($report) {
+                $modifiedData = $report->items();
+                $modifiedData = array_map(function ($item) {
+                    $item->created_by = optional($item->createdBy)->only(['name']);
+                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    unset($item->createdBy, $item->editedBy);
+                    return $item;
+                }, $modifiedData);
+
+                Redis::setex($key, 60, json_encode($report));
+                $message = ($type === 'media') ?
+                    "List Keseluruhan Laporan Media" : (($type === 'comment') ? "List Keseluruhan Laporan Komentar" : "List Keseluruhan Laporan");
+                return $this->success($message, $report);
+            }
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
     }
 
     // create
@@ -105,10 +164,34 @@ class ReportRepository implements ReportInterface
             if ($report->save()) {
                 if (Media::where('id', $media_id)->exists()) {
                     Media::where('id', $media_id)->increment('report_count');
+                    $media = Media::find($media_id);
+
+                    if ($media->report_count > 10) {
+                        $media->report_stat = 'attention';
+                    } else {
+                        $media->report_stat = 'normal';
+                    }
+                    $media->save();
                 }
+
                 if (Comment::where('id', $comment_id)->exists()) {
                     Comment::where('id', $comment_id)->increment('report_count');
+                    $comment = Comment::find($comment_id);
+
+                    if ($comment->report_count > 10) {
+                        $comment->report_stat = 'attention';
+                    } else {
+                        $comment->report_stat = 'normal';
+                    }
+                    $comment->save();
                 }
+
+                // if (Media::where('id', $media_id)->exists()) {
+                //     Media::where('id', $media_id)->increment('report_count');
+                // }
+                // if (Comment::where('id', $comment_id)->exists()) {
+                //     Comment::where('id', $comment_id)->increment('report_count');
+                // }
                 RedisHelper::dropKeys($this->generalRedisKeys);
 
                 return $this->success("Laporan Berhasil ditambahkan!", $report);
@@ -128,10 +211,34 @@ class ReportRepository implements ReportInterface
                 return $this->error("Not Found", "Laporan dengan ID = ($id) tidak ditemukan!", 404);
             }
             // approved
-            $mediaId = $report->media_id;
+            $media_id = $report->media_id;
+            $comment_id = $report->comment_id;
             $del = $report->delete();
             if ($del) {
-                Media::where('id', $mediaId)->decrement('report_count');
+                // Media::where('id', $mediaId)->decrement('report_count');
+                if (Media::where('id', $media_id)->exists()) {
+                    Media::where('id', $media_id)->decrement('report_count');
+                    $media = Media::find($media_id);
+
+                    if ($media->report_count > 10) {
+                        $media->report_stat = 'attention';
+                    } else {
+                        $media->report_stat = 'normal';
+                    }
+                    $media->save();
+                }
+
+                if (Comment::where('id', $comment_id)->exists()) {
+                    Comment::where('id', $comment_id)->decrement('report_count');
+                    $comment = Comment::find($comment_id);
+
+                    if ($comment->report_count > 10) {
+                        $comment->report_stat = 'attention';
+                    } else {
+                        $comment->report_stat = 'normal';
+                    }
+                    $comment->save();
+                }
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("COMPLETED", "Laporan dengan ID = ($id) Berhasil dihapus!");
             }
