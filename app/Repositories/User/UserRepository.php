@@ -3,6 +3,7 @@
 namespace App\Repositories\User;
 
 use App\Helpers\Helper;
+use App\Helpers\AuthHelper;
 use App\Models\User;
 use App\Repositories\User\UserInterface;
 use App\Traits\API_response;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Str;
+
 
 class UserRepository implements UserInterface
 {
@@ -29,111 +31,107 @@ class UserRepository implements UserInterface
         $this->User = $User;
     }
 
-
-    public function getAll($request)
+    public function getUser($request)
     {
         try {
+            // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request);
-            $currentPage = request()->get('page', 1);
-            $keyOne = "{$this->keyRedis}getAll#page{$currentPage}#limit{$limit}";
 
-            // Periksa cache Redis
-            $cachedData = Redis::get($keyOne);
-            if ($cachedData) {
-                $result = json_decode($cachedData);
-                return $this->success("List Data User from CACHE", $result);
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
+            $getSearch = $request->search;
+            $getById = $request->id;
+            $getTrash = $request->trash;
+            $page = $request->page;
+            $paginate = $request->paginate;
+            // $clientIpAddress = $request->getClientIp();
+
+            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch;
+
+            $key = $this->keyRedis . "All" . Auth::user()->username . request()->get('page', 1) . "#params" . $params;
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("List User By {$params} from (CACHE)", $result);
+            }
+            $sqlQuery = User::orderBy('created_at', $order);
+
+            if (Auth::user()->role != "Admin") {
+                $sqlQuery = User::where('id', Auth::user()->id);
+            }
+            // Step 3: Set the query based on trash filter
+            if ($request->filled('trash') && $request->trash == "true") {
+                $query = $sqlQuery->onlyTrashed();
+            } else {
+                $query = $sqlQuery;
             }
 
-            // Ambil data dari database
-            $datas = User::latest()->paginate($limit);
-            $data = Helper::queryModifyUserForDatas($datas, true);
+            // Step 4: Apply search filter
+            if ($request->filled('search')) {
+                $query->where('username', 'LIKE', '%' . $getSearch . '%');
+            }
 
-            // Simpan data ke Redis
-            Redis::set($keyOne, json_encode($data));
-            Redis::expire($keyOne, $this->expired); // Cache sesuai dengan waktu kedaluwarsa
 
-            return $this->success("List Data User", $data);
-        } catch (\Throwable $e) { // Gunakan \Throwable untuk menangkap semua jenis error
-            return $this->error("Internal Server Error", $e->getMessage(), 500);
+
+            // Step 8: Apply id filter and increment views if not already viewed
+            if ($request->filled('id')) {
+                $currentUser = auth()->user();
+                if ($currentUser->id !== $getById && $currentUser->role !== "Admin") {
+                    return $this->error("Unauthorized", "Anda tidak memiliki hak untuk melihat data ini!", 403);
+                }
+                $query->where('id', $getById)->first();
+            }
+
+            // Step 9: Paginate or limit the results
+            if ($request->filled('paginate') && $paginate == "true") {
+                $setPaginate = true;
+                $result = $query->paginate($limit);
+            } else {
+                $setPaginate = false;
+                $result = $query->limit($limit)->get();
+            }
+
+            // Step 10: Modify the result (optional)
+            $datas = Self::queryGetModify($result, $setPaginate, true);
+
+            // Step 11: Cache the results in Redis
+            Redis::set($key, json_encode($datas));
+            Redis::expire($key,  $this->expired);
+
+            return $this->success("List Berita By {$params}", $datas);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error!" . $e->getMessage(), "");
         }
     }
 
-    public function getAllTrash($request)
-    {
-        try {
-            $limit = Helper::limitDatas($request);
-            $currentPage = request()->get('page', 1);
-            $keyOne = "{$this->keyRedis}getAllTrash#page{$currentPage}#limit{$limit}";
-
-            // Periksa cache Redis
-            $cachedData = Redis::get($keyOne);
-            if ($cachedData) {
-                $result = json_decode($cachedData);
-                return $this->success("List Data Trash User from CACHE", $result);
-            }
-
-            // Ambil data dari database (hanya yang soft deleted)
-            $datas = User::onlyTrashed()->latest()->paginate($limit);
-            $data = Helper::queryModifyUserForDatas($datas, true);
-
-            // Simpan data ke Redis dengan waktu kedaluwarsa
-            Redis::set($keyOne, json_encode($data));
-            Redis::expire($keyOne, $this->expired);
-
-            return $this->success("List Data Trash User", $data);
-        } catch (\Throwable $e) { // Tangkap semua jenis error
-            return $this->error("Internal Server Error", $e->getMessage(), 500);
-        }
-    }
-
-    // findOne
-    public function getById($id)
-    {
-        try {
-            // Pastikan hanya Admin atau pemilik akun yang dapat mengakses
-            $currentUser = auth()->user();
-            if ($currentUser->id !== $id && $currentUser->role !== "Admin") {
-                return $this->error("Unauthorized", "Anda tidak memiliki hak untuk melihat data ini!", 403);
-            }
-
-            // Key Redis untuk cache
-            $keyOne = "{$this->keyRedis}getById-" . Str::slug($id);
-
-            // Periksa cache Redis
-            $cachedData = Redis::get($keyOne);
-            if ($cachedData) {
-                $result = json_decode($cachedData);
-                return $this->success("User dengan ID = ($id) from CACHE", $result);
-            }
-
-            // Ambil data dari database
-            $datas = User::find($id);
-            if (!$datas) {
-                return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
-            }
-
-            // Modifikasi data dan simpan ke Redis
-            $data = Helper::queryModifyUserForDatas($datas);
-            Redis::set($keyOne, json_encode($data));
-            Redis::expire($keyOne, $this->expired);
-
-            return $this->success("User dengan ID = ($id)", $data);
-        } catch (\Throwable $e) {
-            return $this->error("Internal Server Error", $e->getMessage(), 500);
-        }
-    }
 
     public function save($request)
     {
         $validator = Validator::make($request->all(), [
             'name'     => 'required',
-            'username'     => 'required|unique:users',
             'email'     => 'required|unique:users',
             'password'           => 'required',
             'jenis_kelamin'           => 'required',
             'active'           => 'required',
             'confirm_password' => 'required|same:password',
-            'image'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:3072'
+            'image'           => 'image|mimes:jpeg,png,jpg|max:3072',
+            'username' => [
+                'required',
+                'string',
+                'min:5',
+                'max:20',
+                'regex:/^[a-zA-Z0-9_.]+$/',
+                'not_regex:/^[_.]|[_.]$/',
+                'unique:users,username',
+            ],
+        ], [
+            'username.required' => 'Username wajib diisi.',
+            'username.string' => 'Username harus berupa teks.',
+            'username.min' => 'Username minimal 5 karakter.',
+            'username.max' => 'Username maksimal 20 karakter.',
+            'username.regex' => 'Username hanya boleh menggunakan huruf, angka, garis bawah (_) atau titik (.) tanpa spasi.',
+            'username.not_regex' => 'Username tidak boleh diawali atau diakhiri dengan garis bawah (_) atau titik (.)',
+            'username.unique' => 'Username sudah digunakan. Pilih username lain.',
         ]);
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
@@ -178,40 +176,56 @@ class UserRepository implements UserInterface
     public function update($request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'name'     => 'required',
             'email'     => 'email',
-            'image'           => 'image|mimes:jpeg,png,jpg|max:3000'
+            'image'           => 'image|mimes:jpeg,png,jpg|max:3000',
+            'username' => [
+                'string',
+                'min:5',
+                'max:20',
+                'regex:/^[a-zA-Z0-9_.]+$/',
+                'not_regex:/^[_.]|[_.]$/',
+            ],
+        ], [
+            'username.string' => 'Username harus berupa teks.',
+            'username.min' => 'Username minimal 5 karakter.',
+            'username.max' => 'Username maksimal 20 karakter.',
+            'username.regex' => 'Username hanya boleh menggunakan huruf, angka, garis bawah (_) atau titik (.) tanpa spasi.',
+            'username.not_regex' => 'Username tidak boleh diawali atau diakhiri dengan garis bawah (_) atau titik (.)',
         ]);
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
         }
         try {
 
-            $user = Auth::user();
 
-            // Pastikan hanya pengguna saat ini yang dapat mengubah datanya sendiri
-            if ($user->id != $id) {
-                return $this->error("Unauthorized", "Anda tidak memiliki izin untuk mengubah password pengguna lain!", 403);
-            }
-
-            // search
+            // Fetch user data
             $datas = User::find($id);
-            // check
+
+            // Check if the user exists
             if (!$datas) {
-                return $this->error("Not Found", "User dengan ID = ($id) tak diditemukan!", 404);
-            }
-            $cekUser = User::where('username', $request->username)->exists();
-            if ($cekUser and $request->username !== "") {
-                return $this->error("Upps, Validation Failed!", "User sudah dipakai", 422);
+                return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            $cekEmail = User::where('email', $request->email)->exists();
-            if ($cekEmail and $request->email !== "") {
-                return $this->error("Upps, Validation Failed!", "Email sudah dipakai", 422);
+            AuthHelper::isOwnerData($datas);
+
+
+            // Validate username if provided
+            if ($request->filled('username')) {
+                if (User::where('username', $request->username)->exists()) {
+                    return $this->error("Validation Failed", "Username sudah dipakai", 422);
+                }
             }
 
+            // Validate email if provided
+            if ($request->filled('email')) {
+                if (User::where('email', $request->email)->exists()) {
+                    return $this->error("Validation Failed", "Email sudah dipakai", 422);
+                }
+            }
+
+            // Validate password
             if (!Hash::check($request->password, $datas->password)) {
-                return $this->error("Upps, Validation Failed!", "Password Anda Salah", 403);
+                return $this->error("Validation Failed", "Password Anda salah", 403);
             }
 
             $fileName = $request->hasFile('image') ? "user_" . time() . "." . $request->image->getClientOriginalExtension() : "";
@@ -344,16 +358,14 @@ class UserRepository implements UserInterface
         try {
             $user = Auth::user();
 
-            // Pastikan hanya pengguna saat ini yang dapat mengubah datanya sendiri
-            if ($user->id != $id) {
-                return $this->error("Unauthorized", "Anda tidak memiliki izin untuk mengubah password pengguna lain!", 403);
-            }
 
             // Cari data pengguna berdasarkan ID
             $datas = User::find($id);
             if (!$datas) {
                 return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
             }
+
+            AuthHelper::isOwnerData($datas);
 
             // Validasi password lama
             if (!Hash::check($request->old_password, $datas->password)) {
@@ -393,7 +405,7 @@ class UserRepository implements UserInterface
             // update datas
             if ($datas->save()) {
                 Helper::deleteRedis($this->keyRedis . "*");
-                return $this->success("Password Berhasil direset!", $datas);
+                return $this->success("Password Berhasil direset dengan: " . $datas->username, $datas);
             }
 
             return $this->error("FAILED", "Password Gagal direset!", 400);
@@ -441,7 +453,6 @@ class UserRepository implements UserInterface
 
             $getSearch = $request->search;
             $getByCategory = $request->category;
-            $getByFilter = $request->filter;
             $getByTopics = $request->topics;
             $getByUser = $request->user_id;
 
@@ -452,10 +463,10 @@ class UserRepository implements UserInterface
             $params =  ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  .  ",#Search=" . $getSearch;
 
             $key = $this->keyRedis . "Instruktor" . request()->get('page', 1) . "#params" . $params;
-            if (Redis::exists($key)) {
-                $result = json_decode(Redis::get($key));
-                return $this->success("List Data Instruktor By {$params} from (CACHE)", $result);
-            }
+            // if (Redis::exists($key)) {
+            //     $result = json_decode(Redis::get($key));
+            //     return $this->success("List Data Instruktor By {$params} from (CACHE)", $result);
+            // }
 
             // Ambil data dari database
             $query = User::whereHas('medias')->with('medias');
@@ -530,11 +541,42 @@ class UserRepository implements UserInterface
         // $item->user_id = $user_id;
         // $item->image = Helper::convertImageToBase64('images/', $item->image);
         // $item = Helper::queryGetUserModify($item);
-        $item->created_by = optional($item->createdBy)->only(['id', 'name']);
-        $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+        // $item->createdBy = optional($item->created_by)->only(['id', 'name']);
+        // $item->editedBy = optional($item->edited_by)->only(['id', 'name']);
         // $item->topic->makeHidden('pivot');
+        $item->makeHidden([
+            'created_by',       // Hide 'created_by' field
+            'edited_by',       // Hide 'created_by' field
+            'created_at',       // Hide 'created_at' field
+            'updated_at',       // Hide 'updated_at' field
+            'email_verified_at', // Hide 'email_verified_at' field
+            'deleted_at',          // Hide 'tentang' field
+            'image',            // Hide 'image' field
+            'id_belajar',       // Hide 'id_belajar' field
+            'last_login',       // Hide 'last_login' field
+            // 'id',       // Hide 'last_login' field
+            'username',       // Hide 'last_login' field
+            'email',       // Hide 'last_login' field
+            'active',       // Hide 'last_login' field
+        ]);
+        // unset($item->id, $item->created_by, $item->edited_by, $item->deleted_at);
 
-        unset($item->createdBy, $item->editedBy, $item->deleted_at);
+        // $item = $item->only(['id', 'name', 'medias']);
+
+        // Format 'medias' as needed (assuming you need to format the media objects as well)
+        if ($item->medias) {
+            foreach ($item->medias as $media) {
+                // Customize this part to include or exclude fields as needed
+                $media->makeHidden([
+                    'created_by',       // Hide 'created_by' field
+                    'edited_by',       // Hide 'created_by' field
+                    'created_at',       // Hide 'created_at' field
+                    'updated_at',       // Hide 'updated_at' field
+                    'user_id', // Hide 'email_verified_at' field
+                ]);
+                // unset($media->created_by, $media->edited_by); // For example, remove created_by and edited_by from media
+            }
+        }
 
         return $item;
     }

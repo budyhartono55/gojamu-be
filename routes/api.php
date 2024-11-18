@@ -67,9 +67,9 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
     // U S E R
     // GET
-    Route::get("/user", [UserController::class, "getAll"])->name("getAllUser");
-    Route::get("/user/trash", [UserController::class, "getAllTrash"])->name("getAllTrashUser");
-    Route::get("/user/{id}", [UserController::class, "getById"])->name("getByIdUser");
+    Route::get("/user", [UserController::class, "getUser"])->name("getAllUser");
+    // Route::get("/user/trash", [UserController::class, "getAllTrash"])->name("getAllTrashUser");
+    // Route::get("/user/{id}", [UserController::class, "getById"])->name("getByIdUser");
     Route::get("/user/restore", [UserController::class, "restore"])->name("getrestoreUser");
     Route::get("/user/restore/{id}", [UserController::class, "restoreById"])->name("getrestoreByIdUser");
     Route::get("/instruktor", [UserController::class, "instruktor"])->name("getInstruktor");
@@ -325,6 +325,9 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // Route::get("/public/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
 
 
+    // I N S T R U K T O R
+    // //GET
+    Route::get("/public/instruktor", [UserController::class, "instruktor"])->name("getInstruktor");
 
     // =======================================================================================================
     // S E T T I N G 

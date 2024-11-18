@@ -38,14 +38,43 @@ class AuthRepository implements AuthInterface
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'username' => 'required|string|max:255|unique:users',
             'email' => 'required|email|max:255|unique:users',
             'password' => [
                 'required',
                 'min:8',
                 'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).+$/'
             ],
-            'confirm_password' => 'required|same:password'
+            'confirm_password' => 'required|same:password',
+            'username' => [
+                'required',
+                'string',
+                'min:5',
+                'max:20',
+                'regex:/^[a-zA-Z0-9_.]+$/',
+                'not_regex:/^[_.]|[_.]$/',
+                'unique:users,username',
+            ],
+        ], [
+            // Custom error messages
+            'name.required' => 'Nama wajib diisi.',
+            'name.string' => 'Nama harus berupa teks.',
+            'name.max' => 'Nama maksimal 255 karakter.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.max' => 'Email maksimal 255 karakter.',
+            'email.unique' => 'Email sudah digunakan. Pilih email lain.',
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password harus memiliki minimal 8 karakter.',
+            'password.regex' => 'Password harus mengandung setidaknya satu huruf kapital dan satu karakter khusus seperti !@#$%^&*(),.?":{}|<>.',
+            'confirm_password.required' => 'Konfirmasi password wajib diisi.',
+            'confirm_password.same' => 'Konfirmasi password harus sama dengan password.',
+            'username.required' => 'Username wajib diisi.',
+            'username.string' => 'Username harus berupa teks.',
+            'username.min' => 'Username minimal 5 karakter.',
+            'username.max' => 'Username maksimal 20 karakter.',
+            'username.regex' => 'Username hanya boleh menggunakan huruf, angka, garis bawah (_) atau titik (.) tanpa spasi.',
+            'username.not_regex' => 'Username tidak boleh diawali atau diakhiri dengan garis bawah (_) atau titik (.)',
+            'username.unique' => 'Username sudah digunakan. Pilih username lain.',
         ]);
 
         // Jika validasi gagal
@@ -90,6 +119,9 @@ class AuthRepository implements AuthInterface
         $validator = Validator::make($request->all(), [
             'username' => 'required|string',
             'password' => 'required|string',
+        ], [
+            'username.required' => 'Username wajib diisi.',
+            'password.required' => 'Password wajib diisi.',
         ]);
 
         // Jika validasi gagal
@@ -98,11 +130,12 @@ class AuthRepository implements AuthInterface
         }
 
         try {
+            $credentials = [
+                filter_var($request->username, FILTER_VALIDATE_EMAIL) ? 'email' : 'username' => $request->username,
+                'password' => $request->password,
+            ];
             // Attempt login with either username or email
-            if (
-                Auth::attempt(['username' => $request->username, 'password' => $request->password]) ||
-                Auth::attempt(['email' => $request->username, 'password' => $request->password])
-            ) {
+            if (Auth::attempt($credentials)) {
 
                 // Get the authenticated user
                 $auth = Auth::user();
@@ -121,12 +154,12 @@ class AuthRepository implements AuthInterface
                     'name' => $auth->name,
                 ];
 
-                return $this->success("Login Successful", $success);
+                return $this->success("Login Berhasil!", $success);
             } else {
-                return $this->error("Login Failed", "Incorrect username or password", 400);
+                return $this->error("Login Gagal", "username atau password Salah", 400);
             }
         } catch (\Throwable $e) {
-            return $this->error("Internal Server Error", $e->getMessage(), 500);
+            return $this->error("Internal Server Error" . $e->getMessage(), $e->getMessage(), 500);
         }
     }
 
