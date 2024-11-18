@@ -54,7 +54,7 @@ class UserRepository implements UserInterface
                 $result = json_decode(Redis::get($key));
                 return $this->success("List User By {$params} from (CACHE)", $result);
             }
-            $sqlQuery = User::orderBy('created_at', $order);
+            $sqlQuery = User::orderBy('created_at', $order)->withCount('medias');
 
             if (Auth::user()->role != "Admin") {
                 $sqlQuery = User::where('id', Auth::user()->id);
@@ -150,6 +150,10 @@ class UserRepository implements UserInterface
                 'password' => bcrypt($request->password),
                 'address' => $request->address,
                 'contact' => $request->contact,
+                'facebook' => $request->facebook,
+                'instagram' => $request->instagram,
+                'twitter' => $request->twitter,
+                'linkedin' => $request->linkedin,
                 'id_belajar' => $request->id_belajar,
                 'role' => $request->role,
                 'active' => $request->active,
@@ -230,11 +234,15 @@ class UserRepository implements UserInterface
 
             $fileName = $request->hasFile('image') ? "user_" . time() . "." . $request->image->getClientOriginalExtension() : "";
 
-            $datas['name'] = $request->name ?: $datas->name;;
+            $datas['name'] = $request->name ?: $datas->name;
             $datas['username'] = $request->username ?: $datas->username;
             $datas['email'] = $request->email ?: $datas->email;
-            $datas['address'] = $request->address ?: $datas->address;;
+            $datas['address'] = $request->address ?: $datas->address;
             $datas['contact'] = $request->contact ?: $datas->contact;
+            $datas['facebook'] = $request->facebook ?: $datas->facebook;
+            $datas['instagram'] = $request->instagram ?: $datas->instagram;
+            $datas['twitter'] = $request->twitter ?: $datas->twitter;
+            $datas['linkedin'] = $request->linkedin ?: $datas->linkedin;
             $datas['jenis_kelamin'] = $request->jenis_kelamin ?: $datas->jenis_kelamin;
             $datas['tentang'] = $request->tentang ?: $datas->tentang;
             $datas['id_belajar'] = $request->id_belajar ?: $datas->id_belajar;
@@ -399,13 +407,13 @@ class UserRepository implements UserInterface
                 return $this->error("Not Found", "User dengan ID = ($id) tidak ditemukan!", 404);
             }
 
-            $datas['password'] = bcrypt($datas->username);
+            $datas['password'] = bcrypt("Qwerty123456!");
             $datas['updated_by'] = Auth::user()->id;
 
             // update datas
             if ($datas->save()) {
                 Helper::deleteRedis($this->keyRedis . "*");
-                return $this->success("Password Berhasil direset dengan: " . $datas->username, $datas);
+                return $this->success("Password Berhasil direset dengan: Qwerty123456!", $datas);
             }
 
             return $this->error("FAILED", "Password Gagal direset!", 400);
@@ -463,13 +471,13 @@ class UserRepository implements UserInterface
             $params =  ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  .  ",#Search=" . $getSearch;
 
             $key = $this->keyRedis . "Instruktor" . request()->get('page', 1) . "#params" . $params;
-            // if (Redis::exists($key)) {
-            //     $result = json_decode(Redis::get($key));
-            //     return $this->success("List Data Instruktor By {$params} from (CACHE)", $result);
-            // }
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("List Data Instruktor By {$params} from (CACHE)", $result);
+            }
 
             // Ambil data dari database
-            $query = User::whereHas('medias')->with('medias');
+            $query = User::whereHas('medias')->with('medias')->withCount('medias');
 
             // Step 4: Apply search filter
             if ($request->filled('user_id')) {
@@ -477,11 +485,11 @@ class UserRepository implements UserInterface
             }
 
             // Step 5: Apply category filter
-            if ($request->filled('category')) {
-                $query->whereHas('ctg_book', function ($queryCategory) use ($request) {
-                    return $queryCategory->where('slug', Str::slug($request->category));
-                });
-            }
+            // if ($request->filled('category')) {
+            //     $query->whereHas('ctg_book', function ($queryCategory) use ($request) {
+            //         return $queryCategory->where('slug', Str::slug($request->category));
+            //     });
+            // }
 
             // Step 9: Paginate or limit the results
             if ($request->filled('paginate') && $paginate == "true") {
@@ -528,43 +536,27 @@ class UserRepository implements UserInterface
     function modifyData($item)
     {
 
-        // $ctg_book_id = [
-        //     'id' => $item['ctg_book_id'],
-        //     'name' => self::queryGetCategory($item['ctg_book_id'])->title_category,
-        //     'slug' => self::queryGetCategory($item['ctg_book_id'])->slug,
-        // ];
-        // $item->ctg_book_id = $ctg_book_id;
+        if (!Auth::check()) {
 
-        // $user_id = [
-        //     'name' => Helper::queryGetUser($item['user_id']),
-        // ];
-        // $item->user_id = $user_id;
-        // $item->image = Helper::convertImageToBase64('images/', $item->image);
-        // $item = Helper::queryGetUserModify($item);
-        // $item->createdBy = optional($item->created_by)->only(['id', 'name']);
-        // $item->editedBy = optional($item->edited_by)->only(['id', 'name']);
-        // $item->topic->makeHidden('pivot');
-        $item->makeHidden([
-            'created_by',       // Hide 'created_by' field
-            'edited_by',       // Hide 'created_by' field
-            'created_at',       // Hide 'created_at' field
-            'updated_at',       // Hide 'updated_at' field
-            'email_verified_at', // Hide 'email_verified_at' field
-            'deleted_at',          // Hide 'tentang' field
-            'image',            // Hide 'image' field
-            'id_belajar',       // Hide 'id_belajar' field
-            'last_login',       // Hide 'last_login' field
-            // 'id',       // Hide 'last_login' field
-            'username',       // Hide 'last_login' field
-            'email',       // Hide 'last_login' field
-            'active',       // Hide 'last_login' field
-        ]);
-        // unset($item->id, $item->created_by, $item->edited_by, $item->deleted_at);
+            $item->makeHidden([
+                'created_by',       // Hide 'created_by' field
+                'edited_by',       // Hide 'created_by' field
+                'created_at',       // Hide 'created_at' field
+                'updated_at',       // Hide 'updated_at' field
+                'email_verified_at', // Hide 'email_verified_at' field
+                'deleted_at',          // Hide 'tentang' field
+                'id_belajar',       // Hide 'id_belajar' field
+                'last_login',       // Hide 'last_login' field
+                'username',       // Hide 'last_login' field
+                'email',       // Hide 'last_login' field
+                'active',       // Hide 'last_login' field
+            ]);
+            // unset($item->id, $item->created_by, $item->edited_by, $item->deleted_at);
 
-        // $item = $item->only(['id', 'name', 'medias']);
+            // $item = $item->only(['id', 'name', 'medias']);
 
-        // Format 'medias' as needed (assuming you need to format the media objects as well)
-        if ($item->medias) {
+            // Format 'medias' as needed (assuming you need to format the media objects as well)
+
             foreach ($item->medias as $media) {
                 // Customize this part to include or exclude fields as needed
                 $media->makeHidden([
@@ -573,10 +565,18 @@ class UserRepository implements UserInterface
                     'created_at',       // Hide 'created_at' field
                     'updated_at',       // Hide 'updated_at' field
                     'user_id', // Hide 'email_verified_at' field
+                    "like_count",
+                    'comment_count',
+                    'rate_count',
+                    'report_stat',
                 ]);
                 // unset($media->created_by, $media->edited_by); // For example, remove created_by and edited_by from media
+
             }
         }
+        $totalLikes = $item->medias->sum('like_count');
+        // Add the total likes as a new attribute
+        $item->total_likes = $totalLikes;
 
         return $item;
     }
