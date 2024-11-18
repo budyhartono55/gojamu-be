@@ -100,6 +100,15 @@ class CommentRepository implements CommentInterface
 
         try {
             $mediaId = $request->media_id;
+            if ($request->parent_id) {
+                $parentComment = Comment::find($request->parent_id);
+                if (!$parentComment) {
+                    return $this->error("Not Found", "Komentar dengan Parent ID = {$request->parent_id} tidak ditemukan!", 404);
+                }
+                if ($parentComment->media_id !== $mediaId) {
+                    return $this->error("Bad Request", "Komentar ini harus berada pada media yang sama dengan komentar induk!", 400);
+                }
+            }
             $comment = new Comment();
             $comment->comment = $request->comment;
             $comment->parent_id = $request->parent_id ? $request->parent_id : null;
@@ -190,17 +199,30 @@ class CommentRepository implements CommentInterface
             }
 
             $mediaId = $comment->media_id;
-            $del = $comment->delete();
-            if ($del) {
-                if ($mediaId) {
-                    Media::where('id', $mediaId)->decrement('comment_count');
-                }
-                RedisHelper::dropKeys($this->generalRedisKeys);
-                return $this->success("COMPLETED", "Komentar dengan ID = ($id) Berhasil dihapus!");
+            $totalDeleted = $this->deleteNestedComments($comment);
+            $resTerkait = $totalDeleted - 1;
+            if ($mediaId) {
+                Media::where('id', $mediaId)->decrement('comment_count', $totalDeleted);
             }
+            RedisHelper::dropKeys($this->generalRedisKeys);
+
+            return $this->success("COMPLETED", "Komentar dengan ID = ($id) dan $resTerkait komentar terkait berhasil dihapus! #(akumulasi $totalDeleted total komentar terhapus)");
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
+    }
+
+    private function deleteNestedComments($comment)
+    {
+        $totalDeleted = 1;
+        $replies = Comment::where('parent_id', $comment->id)->get();
+        foreach ($replies as $reply) {
+            $totalDeleted += $this->deleteNestedComments($reply);
+            $reply->delete();
+        }
+
+        $comment->delete();
+        return $totalDeleted;
     }
 
     private function nestedReplies($replies)
