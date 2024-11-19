@@ -103,7 +103,7 @@ class MediaRepository implements MediaInterface
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['id', 'name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
                     $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
@@ -162,8 +162,8 @@ class MediaRepository implements MediaInterface
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['name']);
-                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
                     unset($item->createdBy, $item->editedBy, $item->ctgMedias);
@@ -217,8 +217,8 @@ class MediaRepository implements MediaInterface
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['name']);
-                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
                     unset($item->createdBy, $item->editedBy, $item->ctgMedias);
@@ -273,8 +273,8 @@ class MediaRepository implements MediaInterface
                 $modifiedData = $media->items();
                 $modifiedData = array_map(function ($item) {
 
-                    $item->created_by = optional($item->createdBy)->only(['name']);
-                    $item->edited_by = optional($item->editedBy)->only(['name']);
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
                     $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
 
                     unset($item->createdBy, $item->editedBy, $item->ctgMedias);
@@ -314,13 +314,13 @@ class MediaRepository implements MediaInterface
                 ->find($id);
 
             if ($media) {
-                $createdBy = User::select('name')->find($media->created_by);
-                $editedBy = User::select('name')->find($media->edited_by);
+                $createdBy = User::select('id', 'name', 'image')->find($media->created_by);
+                $editedBy = User::select('id', 'name')->find($media->edited_by);
                 $ctgMedia = CtgMedia::select('id', 'title_ctg', 'slug')->find($media->ctg_media_id);
                 $topics = $media->topics()->select('id', 'title', 'slug')->get();
 
-                $media->created_by = optional($createdBy)->only(['name']);
-                $media->edited_by = optional($editedBy)->only(['name']);
+                $media->created_by = optional($createdBy)->only(['id', 'name', 'image']);
+                $media->edited_by = optional($editedBy)->only(['id', 'name']);
                 $media->ctg_media_id = optional($ctgMedia)->only(['id', 'title_ctg', 'slug']);
                 $media->topics = $topics->map(function ($topic) {
                     return $topic->only(['id', 'title', 'slug']);

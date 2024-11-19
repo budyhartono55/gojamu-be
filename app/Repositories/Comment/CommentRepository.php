@@ -51,11 +51,11 @@ class CommentRepository implements CommentInterface
 
             if ($comments) {
                 $comments->replies = $this->nestedReplies($comments->replies);
-                $createdBy = User::select('name', 'image')->find($comments->created_by);
-                $editedBy = User::select('name')->find($comments->edited_by);
+                $createdBy = User::select('id', 'name', 'image')->find($comments->created_by);
+                $editedBy = User::select('id', 'name')->find($comments->edited_by);
 
-                $comments->created_by = optional($createdBy)->only(['name', 'image']);
-                $comments->edited_by = optional($editedBy)->only(['name']);
+                $comments->created_by = optional($createdBy)->only(['id', 'name', 'image']);
+                $comments->edited_by = optional($editedBy)->only(['id', 'name']);
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($comments));
