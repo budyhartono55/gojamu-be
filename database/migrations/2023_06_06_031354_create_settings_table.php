@@ -15,10 +15,20 @@ return new class extends Migration
     {
         Schema::create('setting', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->text('banner')->nullable();
-            $table->text('banner_mobile')->nullable();
-            $table->text('banner_tablet')->nullable();
-            $table->string('color')->nullable();
+            $table->text('title_jumbotron')->nullable();
+            $table->text('moto_jumbotron')->nullable();
+            $table->text('image_jumbotron')->nullable();
+            $table->text('title_app')->nullable();
+            $table->text('about_app')->nullable();
+            $table->text('address_app')->nullable();
+            $table->text('contact_app')->nullable();
+            $table->text('facebook_app')->nullable();
+            $table->text('instagram_app')->nullable();
+            $table->text('image1_app')->nullable();
+            $table->text('image2_app')->nullable();
+            $table->text('image3_app')->nullable();
+            $table->text('title_promote')->nullable();
+            $table->text('link_promote')->nullable();
             $table->string('created_by');
             $table->string('edited_by')->nullable();
             $table->timestamps();

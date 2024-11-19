@@ -32,13 +32,12 @@ class SettingRepository implements SettingInterface
     {
         try {
 
+            // Step 1: Get limit from helper or set default
             $limit = Helper::limitDatas($request);
 
-            if (($request->order != null) or ($request->order != "")) {
-                $order = $request->order == "desc" ? "desc" : "asc";
-            } else {
-                $order = "desc";
-            }
+            // Step 2: Determine order direction (asc/desc)
+            $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
+
             $getById = $request->id;
             $page = $request->page;
             $paginate = $request->paginate;
@@ -82,10 +81,10 @@ class SettingRepository implements SettingInterface
     public function save($request)
     {
         $validator = Validator::make($request->all(), [
-            'banner'  => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
-            'banner_mobile'  => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
-            'banner_tablet'  => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
-            'color' => 'required',
+            'image_jumbotron'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image1_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image2_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image3_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
 
         ]);
         if ($validator->fails()) {
@@ -97,16 +96,28 @@ class SettingRepository implements SettingInterface
             if ($datas) {
                 return $this->error("FAILED", "Setting sudah ada!", 400);
             }
-            $banner = $request->hasFile('banner') ? 'banner_' . time() . "." . $request->banner->getClientOriginalExtension() : "";
-            $banner_mobile = $request->hasFile('banner_mobile') ? 'banner_mobile_' . time() . "." . $request->banner_mobile->getClientOriginalExtension() : "";
-            $banner_tablet = $request->hasFile('banner_tablet') ? 'banner_tablet_' . time() . "." . $request->banner_tablet->getClientOriginalExtension() : "";
+            $image_jumbotron = $request->hasFile('image_jumbotron') ? 'image_jumbotron_' . time() . "." . $request->image_jumbotron->getClientOriginalExtension() : "";
+            $image1_app = $request->hasFile('image1_app') ? 'image1_app_' . time() . "." . $request->image1_app->getClientOriginalExtension() : "";
+            $image2_app = $request->hasFile('image2_app') ? 'image2_app_' . time() . "." . $request->image2_app->getClientOriginalExtension() : "";
+            $image3_app = $request->hasFile('image3_app') ? 'image3_app_' . time() . "." . $request->image3_app->getClientOriginalExtension() : "";
 
 
             $data = [
                 'color' => $request->color,
-                'banner' => $banner,
-                'banner_mobile' => $banner_mobile,
-                'banner_tablet' => $banner_tablet,
+                'image_jumbotron' => $image_jumbotron,
+                'image1_app' => $image1_app,
+                'image2_app' => $image2_app,
+                'image3_app' => $image3_app,
+                'title_jumbotron' => $request->title_jumbotron,
+                'moto_jumbotron' => $request->moto_jumbotron,
+                'title_app' => $request->title_app,
+                'about_app' => $request->about_app,
+                'address_app' => $request->address_app,
+                'contact_app' => $request->contact_app,
+                'facebook_app' => $request->facebook_app,
+                'instagram_app' => $request->instagram_app,
+                'title_promote' => $request->title_promote,
+                'link_promote' => $request->link_promote,
                 'created_by' => Auth::user()->id
             ];
             // Create Setting
@@ -115,9 +126,10 @@ class SettingRepository implements SettingInterface
             if ($add) {
 
                 // Save Image in Storage folder setting
-                Helper::saveImage('banner', $banner, $request, $this->destinationImage);
-                Helper::saveImage('banner_mobile', $banner_mobile, $request, $this->destinationImage);
-                Helper::saveImage('banner_tablet', $banner_tablet, $request, $this->destinationImage);
+                Helper::saveImage('image_jumbotron', $image_jumbotron, $request, $this->destinationImage);
+                Helper::saveImage('image1_app', $image1_app, $request, $this->destinationImage);
+                Helper::saveImage('image2_app', $image2_app, $request, $this->destinationImage);
+                Helper::saveImage('image3_app', $image3_app, $request, $this->destinationImage);
 
                 Helper::deleteRedis($this->generalRedisKeys . "*");
                 return $this->success("Setting Berhasil ditambahkan!", $data);
@@ -132,9 +144,10 @@ class SettingRepository implements SettingInterface
     public function update($request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'banner'           => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
-            'banner_mobile'   => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
-            'banner_tablet'   => 'image|mimes:jpeg,png,jpg,gif,svg|max:5012',
+            'image_jumbotron'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image1_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image2_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
+            'image3_app'  => 'image|mimes:jpeg,png,jpg|max:5012',
         ]);
         if ($validator->fails()) {
             return $this->error("Upps, Validation Failed!", $validator->errors(), 422);
@@ -146,57 +159,82 @@ class SettingRepository implements SettingInterface
             if (!$datas) {
                 return $this->error("Not Found", "Setting dengan ID = ($id) tidak ditemukan!", 404);
             }
-            $banner = $request->hasFile('banner') ? 'banner_' . time() . "." . $request->banner->getClientOriginalExtension() : "";
-            $banner_mobile = $request->hasFile('banner_mobile') ? 'banner_mobile_' . time() . "." . $request->banner_mobile->getClientOriginalExtension() : "";
-            $banner_tablet = $request->hasFile('banner_tablet') ? 'banner_tablet_' . time() . "." . $request->banner_tablet->getClientOriginalExtension() : "";
+            $image_jumbotron = $request->hasFile('image_jumbotron') ? 'image_jumbotron_' . time() . "." . $request->image_jumbotron->getClientOriginalExtension() : "";
+            $image1_app = $request->hasFile('image1_app') ? 'image1_app_' . time() . "." . $request->image1_app->getClientOriginalExtension() : "";
+            $image2_app = $request->hasFile('image2_app') ? 'image2_app_' . time() . "." . $request->image2_app->getClientOriginalExtension() : "";
+            $image3_app = $request->hasFile('image3_app') ? 'image3_app_' . time() . "." . $request->image3_app->getClientOriginalExtension() : "";
 
-            $datas['color'] = $request->filled('color') ? $request->color : $datas->color;
+            $datas['title_jumbotron'] = $request->title_jumbotron ?: $datas->title_jumbotron;
+            $datas['moto_jumbotron'] = $request->moto_jumbotron ?: $datas->moto_jumbotron;
+            $datas['title_app'] = $request->title_app ?: $datas->title_app;
+            $datas['about_app'] = $request->about_app ?: $datas->about_app;
+            $datas['address_app'] = $request->address_app ?: $datas->address_app;
+            $datas['contact_app'] = $request->contact_app ?: $datas->contact_app;
+            $datas['facebook_app'] = $request->facebook_app ?: $datas->facebook_app;
+            $datas['instagram_app'] = $request->instagram_app ?: $datas->instagram_app;
+            $datas['title_promote'] = $request->title_promote ?: $datas->title_promote;
+            $datas['link_promote'] = $request->link_promote ?: $datas->link_promote;
 
             $datas['edited_by'] = Auth::user()->id;
 
-            if ($request->hasFile('banner')) {
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner);
+            if ($request->hasFile('image_jumbotron')) {
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image_jumbotron);
                 // public storage
-                $datas['banner'] = $banner;
-                Helper::saveImage('banner', $banner, $request, $this->destinationImage);
+                $datas['image_jumbotron'] = $image_jumbotron;
+                Helper::saveImage('image_jumbotron', $image_jumbotron, $request, $this->destinationImage);
             } else {
-                if ($request->delete_banner) {
+                if ($request->delete_image_jumbotron) {
                     // Old image delete
-                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner);
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image_jumbotron);
 
-                    $datas['banner'] = null;
+                    $datas['image_jumbotron'] = null;
                 }
-                $datas['banner'] = $datas->banner;
+                $datas['image_jumbotron'] = $datas->image_jumbotron;
             }
 
-            if ($request->hasFile('banner_mobile')) {
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner_mobile);
+            if ($request->hasFile('image1_app')) {
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image1_app);
                 // public storage
-                $datas['banner_mobile'] = $banner_mobile;
-                Helper::saveImage('banner_mobile', $banner_mobile, $request, $this->destinationImage);
+                $datas['image1_app'] = $image1_app;
+                Helper::saveImage('image1_app', $image1_app, $request, $this->destinationImage);
             } else {
-                if ($request->delete_banner_mobile) {
+                if ($request->delete_image1_app) {
                     // Old image delete
-                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner_mobile);
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image1_app);
 
-                    $datas['banner_mobile'] = null;
+                    $datas['image1_app'] = null;
                 }
-                $datas['banner_mobile'] = $datas->banner_mobile;
+                $datas['image1_app'] = $datas->image1_app;
             }
 
-            if ($request->hasFile('banner_tablet')) {
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner_tablet);
+            if ($request->hasFile('image2_app')) {
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image2_app);
                 // public storage
-                $datas['banner_tablet'] = $banner_tablet;
-                Helper::saveImage('banner_tablet', $banner_tablet, $request, $this->destinationImage);
+                $datas['image2_app'] = $image2_app;
+                Helper::saveImage('image2_app', $image2_app, $request, $this->destinationImage);
             } else {
-                if ($request->delete_banner_tablet) {
+                if ($request->delete_image2_app) {
                     // Old image delete
-                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->banner_tablet);
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image2_app);
 
-                    $datas['banner_tablet'] = null;
+                    $datas['image2_app'] = null;
                 }
-                $datas['banner_tablet'] = $datas->banner_tablet;
+                $datas['image2_app'] = $datas->image2_app;
+            }
+
+            if ($request->hasFile('image3_app')) {
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image3_app);
+                // public storage
+                $datas['image3_app'] = $image3_app;
+                Helper::saveImage('image3_app', $image3_app, $request, $this->destinationImage);
+            } else {
+                if ($request->delete_image3_app) {
+                    // Old image delete
+                    Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $datas->image3_app);
+
+                    $datas['image3_app'] = null;
+                }
+                $datas['image3_app'] = $datas->image3_app;
             }
 
             // update datas
@@ -223,9 +261,10 @@ class SettingRepository implements SettingInterface
 
             // approved
             if ($data->delete()) {
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->banner);
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->banner_mobile);
-                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->banner_tablet);
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image_jumbotron);
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image1_app);
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image2_app);
+                Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image3_app);
 
 
                 Helper::deleteRedis($this->generalRedisKeys . "*");
