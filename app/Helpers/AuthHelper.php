@@ -16,11 +16,11 @@ class AuthHelper
         $user = Auth::user();
 
         // Ensure the current user is the owner of the data (created_by field in the model)
-        if ($data->created_by != $user->id) {
+        if (($data->created_by != $user->id) or ($user->role != "Admin")) {
             // If not the owner, return an error response
             return self::error(
                 "Unauthorized",
-                "Anda tidak memiliki izin untuk menghapus data ini!",
+                "Anda tidak memiliki izin pada data ini!",
                 403
             );
         }

@@ -108,11 +108,14 @@ class UserRepository implements UserInterface
     public function save($request)
     {
         $validator = Validator::make($request->all(), [
-            'name'     => 'required',
-            'email'     => 'required|unique:users',
-            'password'           => 'required',
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255|unique:users',
+            'password' => [
+                'required',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).+$/'
+            ],
             'jenis_kelamin'           => 'required',
-            'active'           => 'required',
             'confirm_password' => 'required|same:password',
             'image'           => 'image|mimes:jpeg,png,jpg|max:3072',
             'username' => [
@@ -125,6 +128,19 @@ class UserRepository implements UserInterface
                 'unique:users,username',
             ],
         ], [
+            // Custom error messages
+            'name.required' => 'Nama wajib diisi.',
+            'name.string' => 'Nama harus berupa teks.',
+            'name.max' => 'Nama maksimal 255 karakter.',
+            'email.required' => 'Email wajib diisi.',
+            'email.email' => 'Format email tidak valid.',
+            'email.max' => 'Email maksimal 255 karakter.',
+            'email.unique' => 'Email sudah digunakan. Pilih email lain.',
+            'password.required' => 'Password wajib diisi.',
+            'password.min' => 'Password harus memiliki minimal 8 karakter.',
+            'password.regex' => 'Password harus mengandung setidaknya satu huruf kapital dan satu karakter khusus seperti !@#$%^&*(),.?":{}|<>.',
+            'confirm_password.required' => 'Konfirmasi password wajib diisi.',
+            'confirm_password.same' => 'Konfirmasi password harus sama dengan password.',
             'username.required' => 'Username wajib diisi.',
             'username.string' => 'Username harus berupa teks.',
             'username.min' => 'Username minimal 5 karakter.',
@@ -354,9 +370,19 @@ class UserRepository implements UserInterface
     public function changePassword($request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'new_password'    => 'required',
+            'new_password'    => [
+                'required',
+                'min:8',
+                'regex:/^(?=.*[A-Z])(?=.*[!@#$%^&*(),.?":{}|<>]).+$/'
+            ],
             'old_password'    => 'required',
             'confirm_password' => 'required|same:new_password',
+        ], [
+            'new_password.required' => 'Password wajib diisi.',
+            'new_password.min' => 'Password harus memiliki minimal 8 karakter.',
+            'new_password.regex' => 'Password harus mengandung setidaknya satu huruf kapital dan satu karakter khusus seperti !@#$%^&*(),.?":{}|<>.',
+            'confirm_password.required' => 'Konfirmasi password wajib diisi.',
+            'confirm_password.same' => 'Konfirmasi password harus sama dengan password.',
         ]);
 
         if ($validator->fails()) {
@@ -387,10 +413,10 @@ class UserRepository implements UserInterface
             if ($datas->save()) {
                 // Hapus cache jika ada
                 Helper::deleteRedis($this->keyRedis . "*");
-                return $this->success("Password Berhasil diperbaharui!", $datas);
+                return $this->success("Password Berhasil diperbarui!", $datas);
             }
 
-            return $this->error("FAILED", "Password Gagal diperbaharui!", 400);
+            return $this->error("FAILED", "Password Gagal diperbarui!", 400);
         } catch (Exception $e) {
             return $this->error("Error", $e->getMessage(), 500);
         }

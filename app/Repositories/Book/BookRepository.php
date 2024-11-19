@@ -368,10 +368,10 @@ class BookRepository implements BookInterface
             if ($book->save()) {
                 // Step 9: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("Book Berhasil diperbaharui!", $book);
+                return $this->success("Book Berhasil diperbarui!", $book);
             }
 
-            return $this->error("FAILED", "Book gagal diperbaharui!", 400);
+            return $this->error("FAILED", "Book gagal diperbarui!", 400);
         } catch (\Exception $e) {
             // Step 10: Handle any unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage(), 500);
