@@ -33,22 +33,28 @@ class Ctg_BookRepository implements Ctg_BookInterface
     public function getAllCategories($request)
     {
         try {
-            // Step 1: Get the limit from helper or set default
+            // Step 1: Retrieve parameters from the request
             $limit = Helper::limitDatas($request);
-
-            // Step 2: Determine order direction (asc/desc)
             $order = in_array($request->order, ['asc', 'desc']) ? $request->order : 'desc';
-
-            // Retrieve other parameters from the request
+            $paginate = $request->paginate;
+            $page = $request->page;
             $getSearch = $request->search;
             $getRead = $request->read;
             $getById = $request->id;
-            $page = $request->page;
-            $paginate = $request->paginate;
 
-            // Generate Redis cache key
-            $params = "#id=" . $getById . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch . ",#Read=" . $getRead;
-            $key = $this->nameKeyRedis . "All" . request()->get('page', 1) . "#params" . $params;
+            // Step 2: Generate Redis cache key using http_build_query for cleaner parameter string
+            $params = http_build_query([
+                'id' => $getById,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Search' => $getSearch,
+                'Read' => $getRead
+            ], '', ',#');
+
+            // Step 3: Generate Redis key
+            $key = $this->nameKeyRedis . "All" . request()->get('page', 1)  . $page . "#params" . $params;
 
             // Step 3: Check if data exists in Redis cache
             if (Redis::exists($key)) {

@@ -3,6 +3,7 @@
 namespace App\Repositories\News;
 
 use App\Helpers\Helper;
+use App\Helpers\LogHelper;
 use App\Models\Ctg_News;
 use App\Models\News;
 use App\Repositories\News\NewsInterface;
@@ -39,20 +40,33 @@ class NewsRepository implements NewsInterface
             // Step 2: Determine order direction (asc/desc)
             $order = ($request->order && in_array($request->order, ['asc', 'desc'])) ? $request->order : 'desc';
 
+            // Retrieve other parameters from the request
             $getSearch = $request->search;
             $getByCategory = $request->category;
-            $getByFilter = $request->filter;
             $getRead = $request->read;
+            $getByFilter = $request->filter;
             $getById = $request->id;
             $getTrash = $request->trash;
-            $getEvent = $request->event;
             $page = $request->page;
             $paginate = $request->paginate;
-            // $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Event=" . $getEvent . ",#Read=" . $getRead . ",#Search=" . $getSearch;
+            // Retrieve parameters from request
+            $params = http_build_query([
+                'id' => $getById,
+                'Trash' => $getTrash,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Category' => $getByCategory,
+                'Read' => $getRead,
+                'Search' => $getSearch,
+                'Filter' => $getByFilter
+            ], '', ',#');
 
+            // Create the Redis key using the formatted parameters string
             $key = $this->generalRedisKeys . "All" . request()->get('page', 1) . "#params" . $params;
+
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
                 return $this->success("List Berita By {$params} from (CACHE)", $result);
@@ -180,9 +194,11 @@ class NewsRepository implements NewsInterface
             if ($add) {
                 // Step 6: Clear Redis cache after insertion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Disimpan: $request->berita_title", $request);
 
                 return $this->success("Berita Berhasil ditambahkan!", $data);
             }
+            LogHelper::addToLog("Berita gagal Disimpan: $request->berita_title", $request);
 
             return $this->error("FAILED", "Berita gagal ditambahkan!", 400);
         } catch (\Exception $e) {
@@ -250,9 +266,11 @@ class NewsRepository implements NewsInterface
             if ($datas->save()) {
                 // Step 7: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Diubah: $datas->slug", $request);
 
                 return $this->success("Berita Berhasil diperbaharui!", $datas);
             }
+            LogHelper::addToLog("Berita gagal Diubah: $datas->slug", $request);
 
             return $this->error("FAILED", "Berita gagal diperbaharui!", 400);
         } catch (Exception $e) {
@@ -274,11 +292,12 @@ class NewsRepository implements NewsInterface
             if ($data->delete()) {
                 // Step 3: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Dihapus ID: $id", $data, false);
 
                 // Step 4: Return success response
                 return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus!");
             }
-
+            LogHelper::addToLog("Berita gagal Dihapus ID: $id", $data, false);
             // Step 5: If deletion fails, return an error response
             return $this->error("FAILED", "Berita dengan ID = ($id) gagal dihapus!", 400);
         } catch (Exception $e) {
@@ -310,10 +329,13 @@ class NewsRepository implements NewsInterface
 
                 // Step 5: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Dihapus Permanen ID: $id", $data, false);
 
                 // Step 6: Return success response after deletion
                 return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dihapus permanen!");
             }
+            LogHelper::addToLog("Berita gagal Dihapus Permanen ID: $id", $data, false);
+
 
             // Step 7: If deletion fails, return an error response
             return $this->error("FAILED", "Berita dengan ID = ($id) Gagal dihapus permanen!", 400);
@@ -344,10 +366,12 @@ class NewsRepository implements NewsInterface
             if ($restored) {
                 // Clear Redis cache after successful restore
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Direstore", $data, false);
 
                 // Return success response
                 return $this->success("COMPLETED", "Semua Berita di sampah telah berhasil dipulihkan!");
             }
+            LogHelper::addToLog("Berita gagal Direstore", $data, false);
 
             // If restore failed, return an error response
             return $this->error("FAILED", "Restore Berita gagal!", 400);
@@ -373,10 +397,12 @@ class NewsRepository implements NewsInterface
             if ($data->restore()) {
                 // Step 4: Clear related Redis cache after successful restore
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Berita berhasil Direstore ID: $id", $data, false);
 
                 // Step 5: Return success response after restoration
                 return $this->success("COMPLETED", "Berita dengan ID = ($id) Berhasil dipulihkan!");
             }
+            LogHelper::addToLog("Berita gagal Direstore ID: $id", $data, false);
 
             // Step 6: If restoration fails, return an error response
             return $this->error("FAILED", "Restore Berita dengan ID = ($id) Gagal!", 400);

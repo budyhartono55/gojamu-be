@@ -4,6 +4,7 @@ namespace App\Repositories\User;
 
 use App\Helpers\Helper;
 use App\Helpers\AuthHelper;
+use App\Helpers\LogHelper;
 use App\Models\User;
 use App\Repositories\User\UserInterface;
 use App\Traits\API_response;
@@ -47,7 +48,18 @@ class UserRepository implements UserInterface
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch;
+            $params = http_build_query([
+                'id' => $getById,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Search' => $getSearch,
+                'Trash' => $getTrash
+
+            ], '', ',#');
+
+            // $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch;
 
             $key = $this->keyRedis . "All" . Auth::user()->username . request()->get('page', 1) . "#params" . $params;
             if (Redis::exists($key)) {
@@ -184,8 +196,11 @@ class UserRepository implements UserInterface
                 // Save Image in Storage folder User
                 Helper::saveImage('image', $fileName, $request, $this->destinationImage);
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Tambah User:" . $request->username, $request);
+
                 return $this->success("User Berhasil ditambahkan!", $data);
             }
+            LogHelper::addToLog("Gagal Tambah User:" . $request->username, $request);
             return $this->error("FAILED", "User Gagal ditambahkan!", 400);
         } catch (\Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -284,9 +299,11 @@ class UserRepository implements UserInterface
             // update datas
             if ($datas->save()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Ubah User:" . $request->username ?: $datas->username, $request);
+
                 return $this->success("User Berhasil diperbaharui!", $datas);
             }
-
+            LogHelper::addToLog("Gagal Ubah User:" . $request->username ?: $datas->username, $request);
             return $this->error("FAILED", "User Gagal diperbaharui!", 400);
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -305,8 +322,12 @@ class UserRepository implements UserInterface
 
             if ($data->delete()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("delete Sementara User:" . $id, $data, false);
+
                 return $this->success("COMPLETED", "User dengan ID = ($id) Berhasil dihapus!");
             }
+            LogHelper::addToLog("Gagal delete Sementara User:" . $id, $data, false);
+
             return $this->error("FAILED", "User dengan ID = ($id) Gagal dihapus!", 400);
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -328,8 +349,11 @@ class UserRepository implements UserInterface
                 // Old iamge delete
                 Helper::deleteImage($this->destinationImage, $this->destinationImageThumbnail, $data->image);
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("delete Permanen User:" . $id, $data, false);
+
                 return $this->success("COMPLETED", "User dengan ID = ($id) Berhasil dihapus!");
             }
+            LogHelper::addToLog("Gagal delete Permanen User:" . $id, $data, false);
             return $this->error("FAILED", "User dengan ID = ($id) Gagal dihapus!", 400);
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -343,8 +367,12 @@ class UserRepository implements UserInterface
             $data = User::onlyTrashed();
             if ($data->restore()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Restore Data User", $data, false);
+
                 return $this->success("COMPLETED", "Restore User Berhasil!");
             }
+            LogHelper::addToLog("Gagal Restore Data User", $data, false);
+
             return $this->error("FAILED", "Restore User Gagal!", 400);
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -358,8 +386,12 @@ class UserRepository implements UserInterface
             $data = User::onlyTrashed()->where('id', $id);
             if ($data->restore()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Restore Data User ID:" . $id, $data, false);
+
                 return $this->success("COMPLETED", "Restore User dengan ID = ($id) Berhasil!");
             }
+            LogHelper::addToLog("Gagal Restore Data User ID:" . $id, $data, false);
+
             return $this->error("FAILED", "Restore User dengan ID = ($id) Gagal!", 400);
         } catch (Exception $e) {
             // return $this->error($e->getMessage(), $e->getCode());
@@ -413,8 +445,10 @@ class UserRepository implements UserInterface
             if ($datas->save()) {
                 // Hapus cache jika ada
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Ubah Password User:" . $datas->username, $request);
                 return $this->success("Password Berhasil diperbarui!", $datas);
             }
+            LogHelper::addToLog("Gagal Ubah Password User:" . $datas->username, $request);
 
             return $this->error("FAILED", "Password Gagal diperbarui!", 400);
         } catch (Exception $e) {
@@ -439,8 +473,10 @@ class UserRepository implements UserInterface
             // update datas
             if ($datas->save()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Reset Password User:" . $datas->username, $datas, false);
                 return $this->success("Password Berhasil direset dengan: Qwerty123456!", $datas);
             }
+            LogHelper::addToLog("Gagal Reset Password User:" . $datas->username, $datas, false);
 
             return $this->error("FAILED", "Password Gagal direset!", 400);
         } catch (Exception $e) {
@@ -466,8 +502,10 @@ class UserRepository implements UserInterface
             // update datas
             if ($datas->save()) {
                 Helper::deleteRedis($this->keyRedis . "*");
+                LogHelper::addToLog("Ubah Status  User: " . $datas->username, false);
                 return $this->success("Status User  Berhasil diubah!", $datas);
             }
+            LogHelper::addToLog("Gagal Ubah Status User: " . $datas->username, false);
 
             return $this->error("FAILED", "Status User Gagal direset!", 400);
         } catch (Exception $e) {
@@ -493,8 +531,19 @@ class UserRepository implements UserInterface
             $page = $request->page;
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
+            // Retrieve parameters from request
+            $params = http_build_query([
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Search' => $getSearch,
+                'Category' => $getByCategory,
+                'Topics' => $getByTopics,
+                'User' => $getByUser,
 
-            $params =  ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  .  ",#Search=" . $getSearch;
+            ], '', ',#');
+            // $params =  ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  .  ",#Search=" . $getSearch;
 
             $key = $this->keyRedis . "Instruktor" . request()->get('page', 1) . "#params" . $params;
             if (Redis::exists($key)) {

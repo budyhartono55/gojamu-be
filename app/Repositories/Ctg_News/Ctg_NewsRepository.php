@@ -34,22 +34,27 @@ class Ctg_NewsRepository implements Ctg_NewsInterface
     {
         try {
             // Step 1: Get the limit from helper or set default
+            // Step 1: Retrieve and set default values for parameters
             $limit = Helper::limitDatas($request);
-
-            // Step 2: Determine order direction (asc/desc)
             $order = in_array($request->order, ['asc', 'desc']) ? $request->order : 'desc';
-
-            // Retrieve other parameters from the request
+            $paginate = $request->paginate;
+            $page = $request->page;
             $getSearch = $request->search;
             $getRead = $request->read;
             $getById = $request->id;
-            $page = $request->page;
-            $paginate = $request->paginate;
 
-            // Generate Redis cache key
-            $params = "#id=" . $getById . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch . ",#Read=" . $getRead;
-            $key = $this->nameKeyRedis . "All" . request()->get('page', 1) . "#params" . $params;
+            // Step 2: Generate Redis cache key
+            $params = http_build_query([
+                'id' => $getById,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Search' => $getSearch,
+                'Read' => $getRead,
+            ], '', ',#');
 
+            $key = $this->nameKeyRedis . request()->get('page', 1) .  "All" . $page . "#params" . $params;
             // Step 3: Check if data exists in Redis cache
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));

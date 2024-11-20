@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\Ctg_NewsController;
 use App\Http\Controllers\Api\GalleryController;
+use App\Http\Controllers\Api\LogActivityController;
 use App\Http\Controllers\Api\TopicController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
 use App\Http\Controllers\Api\Wilayah\KabupatenController;
@@ -185,6 +186,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
     // //GET
     Route::get("/topic", [TopicController::class, "index"])->name("topic");
+    Route::get("/log-activity", [LogActivityController::class, "index"])->name("log");
 
 
 
