@@ -359,6 +359,10 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     Route::get("/public/setting", [SettingController::class, "getAll"])->name("setting");
 
     // =======================================================================================================
+    // T O P I C
+    Route::get("/public/topic", [TopicController::class, "index"])->name("topic");
+
+    // =======================================================================================================
     // G A L L E R Y
     Route::get("/public/gallery", [GalleryController::class, "index"])->name("gallery");
     Route::get("/public/gallery/{id}", [GalleryController::class, "findById"])->name("findOne");
