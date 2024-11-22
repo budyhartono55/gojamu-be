@@ -4,9 +4,7 @@ namespace App\Repositories\User;
 
 interface UserInterface
 {
-    public function getAll($request);
-    public function getAllTrash($request);
-    public function getById($id);
+    public function getUser($request);
     public function save($request);
     public function update($request, $id);
     public function deleteSementara($id);

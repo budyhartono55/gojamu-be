@@ -15,21 +15,10 @@ class UserController extends Controller
         $this->userRepository = $userRepository;
     }
 
-
-    public function getAll(Request $request)
+    public function getUser(Request $request)
     {
 
-        return $this->userRepository->getAll($request);
-    }
-    public function getAllTrash(Request $request)
-    {
-        return $this->userRepository->getAllTrash($request);
-    }
-
-    public function getById($id)
-    {
-
-        return $this->userRepository->getById($id);
+        return $this->userRepository->getUser($request);
     }
 
     public function save(Request $request)

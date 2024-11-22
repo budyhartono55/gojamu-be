@@ -5,9 +5,28 @@ namespace App\Helpers;
 use App\Models\Bansos;
 use App\Models\Media;
 use Illuminate\Support\Facades\Auth;
+use App\Traits\API_response;
 
 class AuthHelper
 {
+    use API_response;
+    public static function isOwnerData($data)
+    {
+        // Get the current authenticated user
+        $user = Auth::user();
+
+        // Ensure the current user is the owner of the data (created_by field in the model)
+        if (($data->created_by != $user->id) or ($user->role != "Admin")) {
+            // If not the owner, return an error response
+            return self::error(
+                "Unauthorized",
+                "Anda tidak memiliki izin pada data ini!",
+                403
+            );
+        }
+
+        // return true; // If the user is the owner, return true or any other value you want
+    }
 
     public static function hasRole($role)
     {
@@ -34,6 +53,8 @@ class AuthHelper
     {
         return self::hasRole('Umum');
     }
+
+
 
     // public static function ownerPenduduk($id, $hasId = true, $trash = false)
     // {

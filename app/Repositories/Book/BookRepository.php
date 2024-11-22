@@ -2,6 +2,7 @@
 
 namespace App\Repositories\Book;
 
+use App\Helpers\AuthHelper;
 use App\Helpers\Helper;
 use App\Models\Ctg_Book;
 use App\Models\Book;
@@ -15,6 +16,7 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Log;
+
 
 class BookRepository implements BookInterface
 {
@@ -120,14 +122,15 @@ class BookRepository implements BookInterface
             }
             // Step 6: Apply custom filter for sorting
             if ($request->filled('user_id')) {
-                $query->where('created_by', $getByUser)->get();
+
+                $query->where('created_by', $getByUser);
             }
             // Step 7: Apply read filter and increment views if not already viewed
             if ($request->filled('read')) {
                 $bookItem = $query->where('slug', $getRead)->first();
 
 
-                if ($bookItem) {
+                if ($bookItem or !Auth::check()) {
                     if (!session()->has('viewed_book_' . $getRead)) {
                         // Increment the views count if the book hasn't been viewed before in this session
                         $bookItem->increment('views');
@@ -141,7 +144,7 @@ class BookRepository implements BookInterface
             if ($request->filled('id')) {
                 $bookItem = $query->where('id', $getById)->first();
 
-                if ($bookItem) {
+                if ($bookItem or !Auth::check()) {
                     if (!session()->has('viewed_book_' . $getRead)) {
                         // Increment the views count if the book hasn't been viewed before in this session
                         $bookItem->increment('views');
@@ -288,11 +291,22 @@ class BookRepository implements BookInterface
         }
 
         try {
+
+
             // Step 3: Find the book recordy by ID
             $book = Book::find($id);
             if (!$book) {
                 return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
             }
+
+            // Check if the authenticated user is the owner
+            // $ownershipCheck = 
+            AuthHelper::isOwnerData($book);
+
+            // If not the owner, the function returns an error, otherwise proceeds
+            // if ($ownershipCheck !== true) {
+            //     return $ownershipCheck; // If the check failed, return the error
+            // }
             // Step 2: Check if the category exists
             $ctg_book = Ctg_Book::find($request->ctg_book_id);
             if (!$ctg_book) {
@@ -354,10 +368,10 @@ class BookRepository implements BookInterface
             if ($book->save()) {
                 // Step 9: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
-                return $this->success("Book Berhasil diperbaharui!", $book);
+                return $this->success("Book Berhasil diperbarui!", $book);
             }
 
-            return $this->error("FAILED", "Book gagal diperbaharui!", 400);
+            return $this->error("FAILED", "Book gagal diperbarui!", 400);
         } catch (\Exception $e) {
             // Step 10: Handle any unexpected errors
             return $this->error("Internal Server Error!", $e->getMessage(), 500);
@@ -367,11 +381,14 @@ class BookRepository implements BookInterface
     public function delete($id)
     {
         try {
+
             // Step 1: Find the book by ID
             $data = Book::find($id);
             if (empty($data)) {
                 return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan!", 404);
             }
+            AuthHelper::isOwnerData($data);
+
 
             // Step 2: Attempt to delete the book
             if ($data->delete()) {
@@ -386,12 +403,13 @@ class BookRepository implements BookInterface
             return $this->error("FAILED", "Book dengan ID = ($id) gagal dihapus!", 400);
         } catch (Exception $e) {
             // Step 6: Log the error for debugging purposes
-            Log::error("Error deleting berita with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
+            Log::error("Error deleting book with ID = ($id): " . $e->getMessage(), ['exception' => $e]);
 
             // Step 7: Return generic error message for internal server error
             return $this->error("Internal Server Error!", $e->getMessage());
         }
     }
+
 
     public function deletePermanent($id)
     {
@@ -403,6 +421,10 @@ class BookRepository implements BookInterface
             if (!$data) {
                 return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
+
+            AuthHelper::isOwnerData($data);
+
+
 
             // Step 3: Permanently delete the book item
             if ($data->forceDelete()) {
@@ -447,6 +469,9 @@ class BookRepository implements BookInterface
                 return $this->error("Not Found", "Tidak ada Book yang ada di sampah untuk dipulihkan!", 404);
             }
 
+            AuthHelper::isOwnerData($data);
+
+
             // Restore all trashed records
             $restored = $data->restore();
 
@@ -478,6 +503,7 @@ class BookRepository implements BookInterface
             if (!$data) {
                 return $this->error("Not Found", "Book dengan ID = ($id) tidak ditemukan dalam sampah!", 404);
             }
+            AuthHelper::isOwnerData($data);
 
             // Step 3: Restore the trashed book item
             if ($data->restore()) {

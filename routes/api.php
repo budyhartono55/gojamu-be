@@ -65,59 +65,6 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
 
     Route::post("/logout", [AuthController::class, "logout"])->name("logout");
     Route::post("/changePassword", [AuthController::class, "change_password"])->name("change_password");
-    // =======================================================================================================
-    // U S E R
-    // GET
-    Route::get("/user", [UserController::class, "getAll"])->name("getAllUser");
-    Route::get("/user/trash", [UserController::class, "getAllTrash"])->name("getAllTrashUser");
-    Route::get("/user/{id}", [UserController::class, "getById"])->name("getByIdUser");
-    Route::get("/user/restore", [UserController::class, "restore"])->name("getrestoreUser");
-    Route::get("/user/restore/{id}", [UserController::class, "restoreById"])->name("getrestoreByIdUser");
-    Route::get("/instruktor", [UserController::class, "instruktor"])->name("getInstruktor");
-
-    // POST
-    Route::post("/user", [UserController::class, "save"])->name("createUser");
-
-    // PATCH
-    Route::patch("/user/{id}", [UserController::class, "update"])->name("updateUser");
-    Route::patch("/user/password/{id}", [UserController::class, "changePassword"])->name("changePassword");
-
-    // DELETE SEMENTARA
-    Route::delete("/user/{id}", [UserController::class, "deleteSementara"])->name("deleteUserSementara");
-    // DELETE PERMANENT
-    Route::delete("/user/permanent/{id}", [UserController::class, "deletePermanent"])->name("deleteUserPermanent");
-    // RESET
-    Route::patch("/user/reset/{id}", [UserController::class, "resetPassword"])->name("resetPassword");
-    Route::patch("/user/status/{id}", [UserController::class, "statusUser"])->name("statusUser");
-
-    // =======================================================================================================
-    // N E W S
-    // GET
-    Route::get('/news', [NewsController::class, "getNews"])->name("news");
-    // POST
-    Route::post("/news", [NewsController::class, "save"])->name("createNews");
-    Route::post("/news/restore", [NewsController::class, "restore"])->name("restoreNews");
-    Route::post("/news/restore/{id}", [NewsController::class, "restoreById"])->name("restoreByIdNews");
-
-    // PATCH
-    Route::patch("/news/{id}", [NewsController::class, "update"])->name("editNews");
-    // DELETE
-    Route::delete("/news/{id}", [NewsController::class, "delete"])->name("deleteNews");
-    // DELETE PERMANENT
-    Route::delete("/news/permanent/{id}", [NewsController::class, "deletePermanent"])->name("deleteNewsPermanent");
-
-
-    // =======================================================================================================
-    // C A T E G O R Y  - N E W S
-    // //GET
-    Route::get("/ctg-news", [Ctg_NewsController::class, "index"])->name("ctg");
-    // Route::get("/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/ctg-news", [Ctg_NewsController::class, "add"])->name("createCategory");
-    // PATCH
-    Route::patch("/ctg-news/{id}", [Ctg_NewsController::class, "edit"])->name("editCategory");
-    // DELETE
-    Route::delete("/ctg-news/{id}", [Ctg_NewsController::class, "delete"])->name("deleteCategory");
 
     // =======================================================================================================
     // CTG_Service
@@ -217,12 +164,82 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // DELETE
     Route::delete("/gallery/{id}", [GalleryController::class, "delete"])->name("deleteGallery");
 
+
+    // =======================================================================================================
+    // B O O K
+    // GET
+    Route::get('/book', [BookController::class, "getBook"])->name("book");
+    Route::post("/book/favorite/{id}", [BookController::class, "markAsFavorite"])->name("markAsFavorite");
+    Route::post("/book/unfavorite/{id}", [BookController::class, "removeFavorite"])->name("removeFavorite");
+    Route::get("/book/favorite", [BookController::class, "getFavoriteBooks"])->name("getFavoriteBooks");
+    // GET
+    Route::get("/user", [UserController::class, "getUser"])->name("getAllUser");
+    Route::get("/instruktur", [UserController::class, "instruktor"])->name("getInstruktor");
+    // PATCH
+    Route::patch("/user/{id}", [UserController::class, "update"])->name("updateUser");
+    Route::patch("/user/password/{id}", [UserController::class, "changePassword"])->name("changePassword");
+    // GET
+    Route::get('/news', [NewsController::class, "getNews"])->name("news");
+    Route::get("/ctg-news", [Ctg_NewsController::class, "index"])->name("ctg");
+    // Route::get("/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+
+    Route::get("/ctg-book", [Ctg_BookController::class, "index"])->name("ctg");
+    // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+    // //GET
+    Route::get("/topic", [TopicController::class, "index"])->name("topic");
+
+
+
+
     Route::middleware(['isAkses:Admin'])->group(function () {
 
         // =======================================================================================================
+        // U S E R
+
+        // Route::get("/user/trash", [UserController::class, "getAllTrash"])->name("getAllTrashUser");
+        // Route::get("/user/{id}", [UserController::class, "getById"])->name("getByIdUser");
+        Route::get("/user/restore", [UserController::class, "restore"])->name("getrestoreUser");
+        Route::get("/user/restore/{id}", [UserController::class, "restoreById"])->name("getrestoreByIdUser");
+
+        // POST
+        Route::post("/user", [UserController::class, "save"])->name("createUser");
+
+
+        // DELETE SEMENTARA
+        Route::delete("/user/{id}", [UserController::class, "deleteSementara"])->name("deleteUserSementara");
+        // DELETE PERMANENT
+        Route::delete("/user/permanent/{id}", [UserController::class, "deletePermanent"])->name("deleteUserPermanent");
+        // RESET
+        Route::patch("/user/reset/{id}", [UserController::class, "resetPassword"])->name("resetPassword");
+        Route::patch("/user/status/{id}", [UserController::class, "statusUser"])->name("statusUser");
+
+        // =======================================================================================================
+        // N E W S
+        // POST
+        Route::post("/news", [NewsController::class, "save"])->name("createNews");
+        Route::post("/news/restore", [NewsController::class, "restore"])->name("restoreNews");
+        Route::post("/news/restore/{id}", [NewsController::class, "restoreById"])->name("restoreByIdNews");
+
+        // PATCH
+        Route::patch("/news/{id}", [NewsController::class, "update"])->name("editNews");
+        // DELETE
+        Route::delete("/news/{id}", [NewsController::class, "delete"])->name("deleteNews");
+        // DELETE PERMANENT
+        Route::delete("/news/permanent/{id}", [NewsController::class, "deletePermanent"])->name("deleteNewsPermanent");
+
+
+        // =======================================================================================================
+        // C A T E G O R Y  - N E W S
+        // //GET
+        // POST
+        Route::post("/ctg-news", [Ctg_NewsController::class, "add"])->name("createCategory");
+        // PATCH
+        Route::patch("/ctg-news/{id}", [Ctg_NewsController::class, "edit"])->name("editCategory");
+        // DELETE
+        Route::delete("/ctg-news/{id}", [Ctg_NewsController::class, "delete"])->name("deleteCategory");
+
+        // =======================================================================================================
         // B O O K
-        // GET
-        Route::get('/book', [BookController::class, "getBook"])->name("book");
         // POST
         Route::post("/book", [BookController::class, "save"])->name("createBook");
         Route::post("/book/restore", [BookController::class, "restore"])->name("restoreBook");
@@ -235,67 +252,61 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
         // DELETE PERMANENT
         Route::delete("/book/permanent/{id}", [BookController::class, "deletePermanent"])->name("deleteBookPermanent");
 
-        Route::post("/book/favorite/{id}", [BookController::class, "markAsFavorite"])->name("markAsFavorite");
-        Route::post("/book/unfavorite/{id}", [BookController::class, "removeFavorite"])->name("removeFavorite");
-        Route::get("/book/favorite", [BookController::class, "getFavoriteBooks"])->name("getFavoriteBooks");
-        Route::get("/book/favorite-user/{id}", [BookController::class, "getUsersWhoFavoritedBook"])->name("getUsersWhoFavoritedBook");
+
+        // Route::get("/book/favorite-user/{id}", [BookController::class, "getUsersWhoFavoritedBook"])->name("getUsersWhoFavoritedBook");
 
 
 
         // =======================================================================================================
         // C A T E G O R Y  - B O O K
         // //GET
-        Route::get("/ctg-book", [Ctg_BookController::class, "index"])->name("ctg");
-        // Route::get("/ctg_book/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
         // POST
         Route::post("/ctg-book", [Ctg_BookController::class, "add"])->name("createCategory");
         // PATCH
         Route::patch("/ctg-book/{id}", [Ctg_BookController::class, "edit"])->name("editCategory");
         // DELETE
         Route::delete("/ctg-book/{id}", [Ctg_BookController::class, "delete"])->name("deleteCategory");
+
+        // =======================================================================================================
+        // T O P I C
+        // Route::get("/topic/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
+        // POST
+        Route::post("/topic", [TopicController::class, "add"])->name("createTopic");
+        // PATCH
+        Route::patch("/topic/{id}", [TopicController::class, "edit"])->name("editTopic");
+        // DELETE
+        Route::delete("/topic/{id}", [TopicController::class, "delete"])->name("deleteTopic");
+
+        // =======================================================================================================
+
+        // S E T T I N G 
+        Route::get("/setting", [SettingController::class, "getAll"])->name("setting");
+        // POST
+        Route::post("/setting", [SettingController::class, "save"])->name("createSetting");
+        // PATCH
+        Route::patch("/setting/{id}", [SettingController::class, "update"])->name("editSetting");
+        // DELETE
+        Route::delete("/setting/{id}", [SettingController::class, "delete"])->name("deleteSetting");
     });
 
-    // =======================================================================================================
-    // T O P I C
-    // //GET
-    Route::get("/topic", [TopicController::class, "index"])->name("topic");
-    // Route::get("/topic/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
-    // POST
-    Route::post("/topic", [TopicController::class, "add"])->name("createTopic");
-    // PATCH
-    Route::patch("/topic/{id}", [TopicController::class, "edit"])->name("editTopic");
-    // DELETE
-    Route::delete("/topic/{id}", [TopicController::class, "delete"])->name("deleteTopic");
+    // // =======================================================================================================
+    // // P R O V I N S I
+    // // GET
+    // Route::get('/provinsi', [ProvinsiController::class, "getAll"])->name("provinsi");
 
-    // =======================================================================================================
+    // // =======================================================================================================
+    // // K A B U P A T E N
+    // // GET
+    // Route::get('/kabupaten', [KabupatenController::class, "getAll"])->name("kabupaten");
 
-    // S E T T I N G 
-    Route::get("/setting", [SettingController::class, "getAll"])->name("setting");
-    // POST
-    Route::post("/setting", [SettingController::class, "save"])->name("createSetting");
-    // PATCH
-    Route::patch("/setting/{id}", [SettingController::class, "update"])->name("editSetting");
-    // DELETE
-    Route::delete("/setting/{id}", [SettingController::class, "delete"])->name("deleteSetting");
+    // // =======================================================================================================
+    // // K E C A M A T A N
+    // // GET
+    // Route::get('/kecamatan', [KecamatanController::class, "getAll"])->name("Kecamatan");
 
-    // =======================================================================================================
-    // P R O V I N S I
-    // GET
-    Route::get('/provinsi', [ProvinsiController::class, "getAll"])->name("provinsi");
-
-    // =======================================================================================================
-    // K A B U P A T E N
-    // GET
-    Route::get('/kabupaten', [KabupatenController::class, "getAll"])->name("kabupaten");
-
-    // =======================================================================================================
-    // K E C A M A T A N
-    // GET
-    Route::get('/kecamatan', [KecamatanController::class, "getAll"])->name("Kecamatan");
-
-    // D E S A
-    // GET
-    Route::get('/desa', [DesaController::class, "getAll"])->name("Desa");
+    // // D E S A
+    // // GET
+    // Route::get('/desa', [DesaController::class, "getAll"])->name("Desa");
 });
 // =======================================================================================================
 
@@ -341,6 +352,9 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // Route::get("/public/ctg-news/{id}", [CategoryNewsController::class, "findById"])->name("findOne");
 
 
+    // I N S T R U K T O R
+    // //GET
+    Route::get("/public/instruktur", [UserController::class, "instruktor"])->name("getInstruktor");
 
     // =======================================================================================================
     // S E T T I N G 
@@ -359,19 +373,19 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // =======================================================================================================
     // P R O V I N S I
     // GET
-    Route::get('/public/provinsi', [ProvinsiController::class, "getAll"])->name("provinsi");
+    // Route::get('/public/provinsi', [ProvinsiController::class, "getAll"])->name("provinsi");
 
-    // =======================================================================================================
-    // K A B U P A T E N
-    // GET
-    Route::get('/public/kabupaten', [KabupatenController::class, "getAll"])->name("kabupaten");
+    // // =======================================================================================================
+    // // K A B U P A T E N
+    // // GET
+    // Route::get('/public/kabupaten', [KabupatenController::class, "getAll"])->name("kabupaten");
 
-    // =======================================================================================================
-    // K E C A M A T A N
-    // GET
-    Route::get('/public/kecamatan', [KecamatanController::class, "getAll"])->name("Kecamatan");
+    // // =======================================================================================================
+    // // K E C A M A T A N
+    // // GET
+    // Route::get('/public/kecamatan', [KecamatanController::class, "getAll"])->name("Kecamatan");
 
-    // D E S A
-    // GET
-    Route::get('/public/desa', [DesaController::class, "getAll"])->name("Desa");
+    // // D E S A
+    // // GET
+    // Route::get('/public/desa', [DesaController::class, "getAll"])->name("Desa");
 });
