@@ -14,16 +14,22 @@ class Helper
 
     public static function deleteRedis($keyword)
     {
-        if (Redis::keys("*Dashboard-countData")) {
-            Redis::del("Dashboard-countData");
+        $keys = Redis::keys("*" . $keyword);
+
+        if (!empty($keys)) {
+            $keysToDelete = array_map(fn($key) => str_replace(env('REDIS_KEY'), "", $key), $keys);
+            Redis::del(...$keysToDelete);
         }
-        $check = Redis::keys("*" . $keyword);
-        if ($check) {
-            foreach ($check as $key) {
-                $keyRedis = str_replace(env('REDIS_KEY'), "", $key);
-                Redis::del($keyRedis);
-            }
-        }
+        // if (Redis::keys("*Dashboard-countData")) {
+        //     Redis::del("Dashboard-countData");
+        // }
+        // $check = Redis::keys("*" . $keyword);
+        // if ($check) {
+        //     foreach ($check as $key) {
+        //         $keyRedis = str_replace(env('REDIS_KEY'), "", $key);
+        //         Redis::del($keyRedis);
+        //     }
+        // }
     }
 
     public static function resizeImage($image, $fileName, $request)
@@ -152,12 +158,9 @@ class Helper
 
     public static function limitDatas($request, $maksimal = 20)
     {
-        if (($request->limit != null) or ($request->limit != "")) {
-            $limit = $request->limit > $maksimal ? $maksimal : $request->limit;
-        } else {
-            $limit = $maksimal;
-        }
-        return $limit;
+        return isset($request->limit) && $request->limit > 0
+            ? min($request->limit, $maksimal)
+            : $maksimal;
     }
 
     public static function convertImageToBase64($path, $fileName)

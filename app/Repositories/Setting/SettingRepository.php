@@ -94,7 +94,7 @@ class SettingRepository implements SettingInterface
         try {
             $datas = Setting::first();
             if ($datas) {
-                return $this->error("FAILED", "Setting sudah ada!", 400);
+                return $this->error("FAILED", "Data Setting sudah ada!", 400);
             }
             $image_jumbotron = $request->hasFile('image_jumbotron') ? 'image_jumbotron_' . time() . "." . $request->image_jumbotron->getClientOriginalExtension() : "";
             $image1_app = $request->hasFile('image1_app') ? 'image1_app_' . time() . "." . $request->image1_app->getClientOriginalExtension() : "";
@@ -103,7 +103,6 @@ class SettingRepository implements SettingInterface
 
 
             $data = [
-                'color' => $request->color,
                 'image_jumbotron' => $image_jumbotron,
                 'image1_app' => $image1_app,
                 'image2_app' => $image2_app,
@@ -143,6 +142,7 @@ class SettingRepository implements SettingInterface
 
     public function update($request, $id)
     {
+        // return "$request->title_jumbotron";
         $validator = Validator::make($request->all(), [
             'image_jumbotron'  => 'image|mimes:jpeg,png,jpg|max:5012',
             'image1_app'  => 'image|mimes:jpeg,png,jpg|max:5012',

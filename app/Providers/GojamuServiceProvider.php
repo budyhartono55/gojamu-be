@@ -120,6 +120,12 @@ class GojamuServiceProvider extends ServiceProvider
             'App\Repositories\GetFile\GetFileRepository'
         );
 
+        // L O G  A C T I V I T Y ================
+        $this->app->bind(
+            'App\Repositories\LogActivity\LogActivityInterface',
+            'App\Repositories\LogActivity\LogActivityRepository'
+        );
+
         // P R O V I N S I ================
         $this->app->bind(
             'App\Repositories\Wilayah\Provinsi\ProvinsiInterface',

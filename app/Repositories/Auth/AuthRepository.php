@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Mail;
 use App\Mail\resetPassword;
 use Carbon\Carbon;
 use App\Helpers\Helper;
+use App\Helpers\LogHelper;
+
 
 
 class AuthRepository implements AuthInterface
@@ -106,7 +108,7 @@ class AuthRepository implements AuthInterface
                 'name' => $user->name,
                 // 'token' => $token // Uncomment untuk token
             ];
-
+            LogHelper::addToLog("Register Sukses: " . $request->username, $request);
             return $this->success("Registrasi Berhasil!", $success);
         } catch (\Throwable $e) { // Menangani semua jenis error (Exception atau Error)
             return $this->error("Internal Server Error", $e->getMessage(), 500);
@@ -154,8 +156,10 @@ class AuthRepository implements AuthInterface
                     'name' => $auth->name,
                 ];
 
+                LogHelper::addToLog("Login Sukses: " . $auth->username, $request);
                 return $this->success("Login Berhasil!", $success);
             } else {
+                LogHelper::addToLog("Login Gagal: " . $request->username, $request);
                 return $this->error("Login Gagal", "username atau password Salah", 400);
             }
         } catch (\Throwable $e) {
@@ -167,6 +171,8 @@ class AuthRepository implements AuthInterface
     public function logout($request)
     {
         try {
+            LogHelper::addToLog("Logout Berhasil!", $request);
+
             // Hapus semua token pengguna yang sedang aktif
             $request->user('sanctum')->tokens()->delete();
             return $this->success("Logout Berhasil!", "Anda telah logout.");
@@ -212,10 +218,12 @@ class AuthRepository implements AuthInterface
             ]);
 
             if ($update) {
-                return $this->success("Success!", "Password updated successfully");
-            }
+                LogHelper::addToLog("Kata sandi berhasil diperbarui!", $request);
 
-            return $this->error("Internal Server Error", "Failed to update password", 500);
+                return $this->success("Success!", "Kata sandi berhasil diperbarui");
+            }
+            LogHelper::addToLog("Kata sandi gagal diperbarui!", $request);
+            return $this->error("Internal Server Error", "Kata sandi gagal diperbarui", 500);
         } catch (\Exception $e) {
             return $this->error("Internal Server Error!", $e->getMessage(), 500);
         }

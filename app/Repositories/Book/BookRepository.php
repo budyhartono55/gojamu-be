@@ -3,6 +3,7 @@
 namespace App\Repositories\Book;
 
 use App\Helpers\AuthHelper;
+use App\Helpers\LogHelper;
 use App\Helpers\Helper;
 use App\Models\Ctg_Book;
 use App\Models\Book;
@@ -48,15 +49,30 @@ class BookRepository implements BookInterface
             $getByFilter = $request->filter;
             $getByTopics = $request->topics;
             $getByUser = $request->user_id;
-            $getFavoriteByUser = $request->book_user_id;
+            $getFavoriteByUser = $request->favorit_user_id;
             $getRead = $request->read;
             $getById = $request->id;
             $getTrash = $request->trash;
             $page = $request->page;
             $paginate = $request->paginate;
             // $clientIpAddress = $request->getClientIp();
+            $params = http_build_query([
+                'id' => $getById,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Read' => $getRead,
+                'Search' => $getSearch,
+                'Trash' => $getTrash,
+                'Category' => $getByCategory,
+                'Topics' => $getByTopics,
+                'User' => $getByUser,
+                'FavoriteUser' => $getFavoriteByUser,
 
-            $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  . ",#FavoriteUser=" . $getFavoriteByUser . ",#Read=" . $getRead . ",#Search=" . $getSearch;
+            ], '', ',#');
+
+            // $params = "#id=" . $getById . ",#Trash=" . $getTrash . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Category=" . $getByCategory . ",#Topics=" . $getByTopics . ",#User=" . $getByUser  . ",#FavoriteUser=" . $getFavoriteByUser . ",#Read=" . $getRead . ",#Search=" . $getSearch;
 
             $user = Auth::user(); // Get the currently authenticated user
             $statusLogin = !Auth::check() ? "-public-" : $user->username;
@@ -260,10 +276,12 @@ class BookRepository implements BookInterface
             if ($book) {
                 // Clear Redis cache after insertion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Tambah Buku: " . $request->title, $request);
 
                 // Return success response
                 return $this->success("Book Berhasil ditambahkan!", $data);
             }
+            LogHelper::addToLog("Gagal Tambah Buku: " . $request->title, $request);
 
             // Return failure response if creation fails
             return $this->error("FAILED", "Book gagal ditambahkan!", 400);
@@ -326,13 +344,13 @@ class BookRepository implements BookInterface
             }
 
             // Step 4: Update book fields
-            $book->title = $request->title;
-            $book->description = $request->description ?? $book->description;  // Default to empty string if null
-            $book->slug = Str::slug($request->title);
-            $book->file_link = $request->file_link;
-            $book->ctg_book_id = $request->ctg_book_id;
+            $book->title = $request->title ?: $book->title;
+            $book->description = $request->description ?: $book->description;  // Default to empty string if null
+            $book->slug = $request->title ? Str::slug($request->title) : $book->slug;
+            $book->file_link = $request->file_link ?: $book->file_link;
+            $book->ctg_book_id = $request->ctg_book_id ?: $book->ctg_book_id;
             $book->edited_by = Auth::user()->id;
-            $book->posted_at = Carbon::createFromFormat('d-m-Y', $request->posted_at);
+            $book->posted_at = $request->posted_at ? Carbon::createFromFormat('d-m-Y', $request->posted_at) : $book->posted_at;
 
             // Step 5: Handle cover image upload or deletion
             if ($request->hasFile('cover')) {
@@ -368,8 +386,11 @@ class BookRepository implements BookInterface
             if ($book->save()) {
                 // Step 9: Clear the Redis cache after saving
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Ubah Buku: " . $request->title, $request);
+
                 return $this->success("Book Berhasil diperbarui!", $book);
             }
+            LogHelper::addToLog("Gagal Ubah Buku: " . $request->title, $request);
 
             return $this->error("FAILED", "Book gagal diperbarui!", 400);
         } catch (\Exception $e) {
@@ -394,10 +415,13 @@ class BookRepository implements BookInterface
             if ($data->delete()) {
                 // Step 3: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                // Log successful deletion
+                LogHelper::addToLog("Buku berhasil dihapus dengan ID: $id", $data, false);
 
                 // Step 4: Return success response
                 return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dihapus!");
             }
+            LogHelper::addToLog("Buku gagal dihapus dengan ID: $id", $data, false);
 
             // Step 5: If deletion fails, return an error response
             return $this->error("FAILED", "Book dengan ID = ($id) gagal dihapus!", 400);
@@ -441,10 +465,12 @@ class BookRepository implements BookInterface
 
                 // Step 5: Clear related Redis cache after successful deletion
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Buku berhasil dihapus permanen dengan ID: $id", $data, false);
 
                 // Step 6: Return success response after deletion
                 return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dihapus permanen!");
             }
+            LogHelper::addToLog("Buku gagal dihapus permanen dengan ID: $id", $data, false);
 
             // Step 7: If deletion fails, return an error response
             return $this->error("FAILED", "Book dengan ID = ($id) Gagal dihapus permanen!", 400);
@@ -479,6 +505,7 @@ class BookRepository implements BookInterface
             if ($restored) {
                 // Clear Redis cache after successful restore
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Buku berhasil direstore", $data, false);
 
                 // Return success response
                 return $this->success("COMPLETED", "Semua Book di sampah telah berhasil dipulihkan!");
@@ -509,10 +536,12 @@ class BookRepository implements BookInterface
             if ($data->restore()) {
                 // Step 4: Clear related Redis cache after successful restore
                 Helper::deleteRedis($this->generalRedisKeys . "*");
+                LogHelper::addToLog("Buku berhasil direstore dengan ID: $id", $data, false);
 
                 // Step 5: Return success response after restoration
                 return $this->success("COMPLETED", "Book dengan ID = ($id) Berhasil dipulihkan!");
             }
+            LogHelper::addToLog("Buku gagal direstore dengan ID: $id", $data, false);
 
             // Step 6: If restoration fails, return an error response
             return $this->error("FAILED", "Restore Book dengan ID = ($id) Gagal!", 400);

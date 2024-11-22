@@ -47,8 +47,17 @@ class TopicRepository implements TopicInterface
             $page = $request->page;
             $paginate = $request->paginate;
 
+            $params = http_build_query([
+                'id' => $getById,
+                'Paginate' => $paginate,
+                'Order' => $order,
+                'Limit' => $limit,
+                'Page' => $page,
+                'Read' => $getRead,
+                'Search' => $getSearch,
+            ], '', ',#');
             // Generate Redis cache key
-            $params = "#id=" . $getById . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch . ",#Read=" . $getRead;
+            // $params = "#id=" . $getById . ",#Paginate=" . $paginate . ",#Order=" . $order . ",#Limit=" . $limit .  ",#Page=" . $page . ",#Search=" . $getSearch . ",#Read=" . $getRead;
             $key = $this->nameKeyRedis . "All" . request()->get('page', 1) . "#params" . $params;
 
             // Step 3: Check if data exists in Redis cache
