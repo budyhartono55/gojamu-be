@@ -180,6 +180,8 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // Report
     // //GET
     Route::get("/report", [ReportController::class, "index"])->name("report");
+    Route::get("/reported/media", [MediaController::class, "reported"])->name("report");
+    Route::get("/reported/comment", [CommentController::class, "reported"])->name("report");
     Route::get("/report/{id}", [ReportController::class, "findById"])->name("findOne");
     // POST
     Route::post("/media/report", [ReportController::class, "insert"])->name("createReportMed");

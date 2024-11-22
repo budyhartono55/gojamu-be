@@ -29,6 +29,45 @@ class CommentRepository implements CommentInterface
         $this->generalRedisKeys = "comment_";
     }
 
+    public function getAllCommentsAttention()
+    {
+        try {
+            $key = $this->generalRedisKeys . "public_All_attention_" . request()->get("page", 1);
+            $keyAuth = $this->generalRedisKeys . "auth_All_attention_" . request()->get("page", 1);
+            $key = Auth::check() ? $keyAuth : $key;
+
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("(CACHE): Daftar Komentar dengan status perhatian", $result);
+            }
+
+            $comment = Comment::with([
+                'createdBy',
+                'editedBy',
+            ])
+                ->where('report_stat', 'attention')
+                ->latest('created_at')
+                ->paginate(12);
+
+            if ($comment) {
+                $modifiedData = $comment->items();
+                $modifiedData = array_map(function ($item) {
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+
+                    unset($item->createdBy, $item->editedBy);
+                    return $item;
+                }, $modifiedData);
+
+                Redis::setex($key, 60, json_encode($comment));
+                return $this->success("Daftar Komentar dengan status perhatian", $comment);
+            }
+
+            return $this->success("Tidak ada Komentar dengan status perhatian.", []);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
     // findOne
     public function findById($id)
     {

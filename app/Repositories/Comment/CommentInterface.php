@@ -9,6 +9,7 @@ interface CommentInterface
     // getAll
     // public function getComments($request);
     public function findById($id);
+    public function getAllCommentsAttention();
     // insertData
     public function createComment($request);
     // update

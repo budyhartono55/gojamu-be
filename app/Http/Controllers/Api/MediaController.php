@@ -27,6 +27,11 @@ class MediaController extends Controller
     {
         return $this->mediaRepository->getMedias($request);
     }
+
+    public function reported()
+    {
+        return $this->mediaRepository->getAllMediasAttention();
+    }
     public function findById($id)
     {
         return $this->mediaRepository->findById($id);

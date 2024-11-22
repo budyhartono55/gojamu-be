@@ -531,4 +531,59 @@ class MediaRepository implements MediaInterface
             return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
+
+    public function getAllMediasAttention()
+    {
+        try {
+            $key = $this->generalRedisKeys . "public_All_attention_" . request()->get("page", 1);
+            $keyAuth = $this->generalRedisKeys . "auth_All_attention_" . request()->get("page", 1);
+            $key = Auth::check() ? $keyAuth : $key;
+
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("(CACHE): Daftar media dengan status perhatian", $result);
+            }
+
+            $userId = Auth::id();
+            $media = Media::with([
+                'createdBy',
+                'editedBy',
+                'ctgMedias',
+                'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }
+            ])
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->where('report_stat', 'attention')
+                ->latest('created_at')
+                ->paginate(12);
+
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            if ($media) {
+                $modifiedData = $media->items();
+                $modifiedData = array_map(function ($item) {
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                    return $item;
+                }, $modifiedData);
+
+                Redis::setex($key, 60, json_encode($media));
+                return $this->success("Daftar media dengan status perhatian", $media);
+            }
+
+            return $this->success("Tidak ada media dengan status perhatian.", []);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
 }

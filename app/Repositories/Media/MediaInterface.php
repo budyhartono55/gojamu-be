@@ -15,4 +15,6 @@ interface MediaInterface
     public function updateMedia($request, $id);
     // delete
     public function deleteMedia($id);
+
+    public function getAllMediasAttention();
 }

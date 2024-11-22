@@ -23,9 +23,9 @@ class CommentController extends Controller
 
     //M E T H O D E ======================
     // core
-    public function index(Request $request)
+    public function reported()
     {
-        // return $this->commentRepository->getComments($request);
+        return $this->commentRepository->getAllCommentsAttention();
     }
     public function findById($id)
     {
