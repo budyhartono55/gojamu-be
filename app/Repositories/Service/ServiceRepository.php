@@ -345,7 +345,8 @@ class ServiceRepository implements ServiceInterface
             if ($request->hasFile('icon')) {
                 $destination = 'public/icons';
                 $icon = $request->file('icon');
-                $iconName = $service->slug . "-" . time() . "." . $icon->getClientOriginalExtension();
+                $label = Str::slug($request->title_service, '-');
+                $iconName =  $label . "-" . time() . "." . $icon->getClientOriginalExtension();
 
                 $service->icon = $iconName;
                 //storeOriginal
