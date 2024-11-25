@@ -43,7 +43,7 @@ class RatingRepository implements RatingInterface
             }
             $ratings = Rating::where('media_id', $id)
                 ->with('users:id,name,image')
-                ->get(['rating', 'description', 'user_id']);
+                ->get(['rating', 'description', 'user_id', 'created_at']);
             if ($ratings->isEmpty()) {
                 return $this->error("Tidak ditemukan", "Tidak ada rating untuk media dengan ID = ($id)", 404);
             }
