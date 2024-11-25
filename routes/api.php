@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\Ctg_NewsController;
 use App\Http\Controllers\Api\GalleryController;
 use App\Http\Controllers\Api\TopicController;
+use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\Wilayah\DesaController;
 use App\Http\Controllers\Api\Wilayah\KabupatenController;
 use App\Http\Controllers\Api\Wilayah\KecamatanController;
@@ -163,8 +164,16 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/gallery/{id}", [GalleryController::class, "edit"])->name("editGallery");
     // DELETE
     Route::delete("/gallery/{id}", [GalleryController::class, "delete"])->name("deleteGallery");
+    // =======================================================================================================
+    // R A T E
+    Route::get("/media/rate", [RatingController::class, "index"])->name("gallery");
+    Route::get("/media/rate/{id}", [RatingController::class, "findById"])->name("findOne");
 
-
+    // POST
+    Route::post("/media/rate", [RatingController::class, "rate"])->name("Rate");
+    // Route::patch("/rating/{id}", [RatingController::class, "edit"])->name("editRating");
+    // DELETE
+    Route::delete("/media/rate/{id}", [RatingController::class, "delete"])->name("deleteRating");
     // =======================================================================================================
     // B O O K
     // GET

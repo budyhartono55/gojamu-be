@@ -15,7 +15,8 @@ return new class extends Migration
     {
         Schema::create('rating', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string("rating")->nullable();
+            $table->integer("rating")->default(0)->nullable();
+            $table->text("description")->nullable();
             $table->date("posted_at");
             $table->string("media_id")->nullable();
             $table->string("user_id")->nullable();
