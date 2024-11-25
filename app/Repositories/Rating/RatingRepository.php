@@ -30,108 +30,6 @@ class RatingRepository implements RatingInterface
         $this->generalRedisKeys = "rating_";
     }
 
-
-    public function getRatings($request)
-    {
-        $limit = Helper::limitDatas($request);
-        $getId = $request->id;
-        // $getType = $request->type;
-        $getCtg = $request->ctg;
-
-
-        // if (!empty($getType)) {
-        //     return $getType == 'photo' || $getType == 'video'
-        //         ? self::getAllMedia($getType, $limit, $getCtg)
-        //         : $this->error("Not Found", "Type ($getType) tidak terdaftar", 404);
-        // USED
-        // if (!empty($getType)) {
-        //     return in_array($getType, ['photo', 'video', 'streaming'])
-        //         ? self::getAllMedia($getType, $limit, $getCtg)
-        //         : $this->error("Not Found", "Type ($getType) tidak terdaftar", 404);
-        // } else
-
-        if (!empty($getId)) {
-            return self::findById($getId);
-        } else {
-            return self::getAllRatings($getCtg, $limit);
-        }
-    }
-
-    public function getAllRatings($slug, $limit)
-    {
-        try {
-            $page = request()->get("page", 1);
-            $key = $this->generalRedisKeys . "public_All_" . $page . '_limit#' . $limit . ($slug ? '_slug#' . $slug : '');
-            $keyAuth = $this->generalRedisKeys . "auth_All_" . $page . '_limit#' . $limit . ($slug ? '_slug#' . $slug : '');
-            $key = Auth::check() ? $keyAuth : $key;
-
-            if (Redis::exists($key)) {
-                $result = json_decode(Redis::get($key));
-                return $this->success("(CACHE): List Keseluruhan Rating", $result);
-            }
-
-            $ratingQuery = Rating::with(['ctg_galleries', 'createdBy', 'editedBy'])
-                ->latest('created_at');
-
-            if ($slug) {
-                $ratingQuery->whereHas('ctg_galleries', function ($query) use ($slug) {
-                    $query->where('slug', $slug);
-                });
-            }
-            $rating = $ratingQuery->paginate($limit);
-
-            if ($rating) {
-                $modifiedData = $rating->items();
-                $modifiedData = array_map(function ($item) {
-                    $item->created_by = optional($item->createdBy)->only(["id", "name"]);
-                    $item->edited_by = optional($item->editedBy)->only(["id", "name"]);
-                    $item->ctg_rating_id = optional($item->ctg_galleries)->only(['id', "title_ctg", "slug"]);
-
-                    unset($item->createdBy, $item->editedBy, $item->ctg_galleries);
-                    return $item;
-                }, $modifiedData);
-
-                $key = Auth::check() ? $keyAuth : $key;
-                Redis::setex($key, 60, json_encode($rating));
-
-                return $this->success("List Keseluruhan Rating", $modifiedData);
-            }
-        } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
-        }
-    }
-
-    // findOne
-    public function findById($id)
-    {
-        try {
-            $key = $this->generalRedisKeys . "public_";
-            $keyAuth = $this->generalRedisKeys . "Auth_";
-            $key = Auth::check() ? $keyAuth : $key;
-            if (Redis::exists($key . $id)) {
-                $result = json_decode(Redis::get($key . $id));
-                return $this->success("(CACHE): Detail Rating dengan ID = ($id)", $result);
-            }
-
-            $rating = Rating::find($id);
-            if ($rating) {
-                $createdBy = User::select('id', 'name')->find($rating->created_by);
-                $editedBy = User::select('id', 'name')->find($rating->edited_by);
-                $rating->created_by = optional($createdBy)->only(['id', 'name']);
-                $rating->edited_by = optional($editedBy)->only(['id', 'name']);
-
-                $key = Auth::check() ? $keyAuth . $id : $key . $id;
-                Redis::setex($key, 60, json_encode($rating));
-
-                return $this->success("Rating dengan ID $id", $rating);
-            } else {
-                return $this->error("Not Found", "Rating dengan ID $id tidak ditemukan!", 404);
-            }
-        } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
-        }
-    }
-
     public function rate($request)
     {
         $validator = Validator::make(
@@ -194,14 +92,6 @@ class RatingRepository implements RatingInterface
                     return $this->success("Rating Berhasil ditambahkan!", $rating);
                 }
             }
-
-            //syncMedia
-            // $averageRating = Rating::where('media_id', $mediaId)->avg('rating');
-            // // $ratingCount = Rating::where('media_id', $mediaId)->count();
-            // $media->update([
-            //     'rate_total' => $averageRating,
-            //     // 'rate_count' => $ratingCount,
-            // ]);
 
             return $this->success("Sync rate ke media berhasil direkam!", $media);
         } catch (\Exception $e) {
