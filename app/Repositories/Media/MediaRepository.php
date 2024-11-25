@@ -22,6 +22,7 @@ use App\Models\CtgMedia;
 use App\Models\Topic;
 use App\Models\Like;
 use App\Models\Report;
+use App\Models\Rating;
 use App\Models\Comment;
 use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
@@ -307,7 +308,7 @@ class MediaRepository implements MediaInterface
             }
             $userId = Auth::id();
 
-            // Menggunakan withCount untuk cek liked_stat
+            // withCount untuk cek liked_stat
             $media = Media::withCount(['likes as liked_stat' => function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             }])
@@ -350,8 +351,13 @@ class MediaRepository implements MediaInterface
                     $comment->user_image = $comment->users->image;
                     unset($comment->users);
                 });
-
                 $media->comments = $comments;
+
+                // rate
+                $ratings = Rating::where('media_id', $id)
+                    ->with('users:id,name,image')
+                    ->get(['rating', 'description', 'user_id']);
+                $media->ratings = $ratings;
 
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
