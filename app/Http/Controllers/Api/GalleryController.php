@@ -43,8 +43,6 @@ class GalleryController extends Controller
     // update
     public function edit(Request $request, $id)
     {
-
-        //  return dd($request->all());
         return $this->galleryRepository->updateGallery($request, $id);
     }
 
