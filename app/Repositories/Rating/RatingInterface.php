@@ -7,4 +7,5 @@ use Illuminate\Http\Request;
 interface RatingInterface
 {
     public function rate($request);
+    public function getRatingsByMediaId($id);
 }

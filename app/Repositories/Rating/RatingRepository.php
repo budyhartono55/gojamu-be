@@ -30,6 +30,32 @@ class RatingRepository implements RatingInterface
         $this->generalRedisKeys = "rating_";
     }
 
+    public function getRatingsByMediaId($id)
+    {
+        try {
+            $key = $this->generalRedisKeys . "public_";
+            $keyAuth = $this->generalRedisKeys . "auth_";
+            $key = Auth::check() ? $keyAuth : $key;
+
+            if (Redis::exists($key . $id)) {
+                $result = json_decode(Redis::get($key . $id));
+                return $this->success("(CACHE): Daftar rating untuk Media dengan ID = ($id)", $result);
+            }
+            $ratings = Rating::where('media_id', $id)
+                ->with('users:id,name,image')
+                ->get(['rating', 'description', 'user_id']);
+            if ($ratings->isEmpty()) {
+                return $this->error("Tidak ditemukan", "Tidak ada rating untuk media dengan ID = ($id)", 404);
+            }
+
+            $key = Auth::check() ? $keyAuth . $id : $key . $id;
+            Redis::setex($key, 60, json_encode($ratings));
+            return $this->success("Daftar Rating untuk Media dengan ID = ($id)", $ratings);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
+        }
+    }
+
     public function rate($request)
     {
         $validator = Validator::make(

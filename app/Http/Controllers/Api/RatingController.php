@@ -23,4 +23,8 @@ class RatingController extends Controller
     {
         return $this->ratingRepository->rate($request);
     }
+    public function findByIdMedia($id)
+    {
+        return $this->ratingRepository->getRatingsByMediaId($id);
+    }
 }

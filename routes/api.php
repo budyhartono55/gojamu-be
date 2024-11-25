@@ -167,13 +167,13 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // =======================================================================================================
     // R A T E
     Route::get("/media/rate", [RatingController::class, "index"])->name("gallery");
-    Route::get("/media/rate/{id}", [RatingController::class, "findById"])->name("findOne");
+    Route::get("/media/rate/{id}", [RatingController::class, "findByIdMedia"])->name("findOne");
 
     // POST
     Route::post("/media/rate", [RatingController::class, "rate"])->name("Rate");
     // Route::patch("/rating/{id}", [RatingController::class, "edit"])->name("editRating");
     // DELETE
-    Route::delete("/media/rate/{id}", [RatingController::class, "delete"])->name("deleteRating");
+    // Route::delete("/media/rate/{id}", [RatingController::class, "delete"])->name("deleteRating");
     // =======================================================================================================
     // B O O K
     // GET

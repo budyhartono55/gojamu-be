@@ -353,12 +353,6 @@ class MediaRepository implements MediaInterface
                 });
                 $media->comments = $comments;
 
-                // rate
-                $ratings = Rating::where('media_id', $id)
-                    ->with('users:id,name,image')
-                    ->get(['rating', 'description', 'user_id']);
-                $media->ratings = $ratings;
-
                 $key = Auth::check() ? $keyAuth . $id : $key . $id;
                 Redis::setex($key, 60, json_encode($media));
                 return $this->success("Detail Konten/Media dengan ID = ($id)", $media);
