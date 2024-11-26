@@ -21,7 +21,7 @@ class Favorite extends Model
     //R E L A T I O N ==============
     public function books()
     {
-        return $this->belongsTo(Books::class, 'book_id', 'id');
+        return $this->belongsTo(Book::class, 'book_id', 'id');
     }
     public function media()
     {
