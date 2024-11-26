@@ -5,33 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Models\Wilayah\Kecamatan;
 
-
-class Favorite extends Model
+class Favorite_Media extends Model
 {
     use HasFactory, HasUuids;
 
     protected $guarded = [];
-    protected $table = 'favorite';
+    protected $table = 'favorite_media';
     protected $hidden = [
         'created_at',
-        'updated_at'
+        'updated_at',
     ];
 
-    //R E L A T I O N ==============
-    public function books()
-    {
-        return $this->belongsTo(Book::class, 'book_id', 'id');
-    }
-    public function media()
-    {
-        return $this->belongsTo(Media::class, 'content_id', 'id');
-    }
+
     public function users()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
     }
-    //================================================
+    public function medias()
+    {
+        return $this->belongsTo(Media::class, 'media_id', 'id');
+    }
+
+    // general
     public function createdBy()
     {
         return $this->belongsTo(User::class, 'created_by');

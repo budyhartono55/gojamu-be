@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\Comment;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Redis;
@@ -207,6 +208,7 @@ class ReportRepository implements ReportInterface
     {
         try {
             // search
+            DB::beginTransaction();
             $report = Report::find($id);
             if (!$report) {
                 return $this->error("Not Found", "Laporan dengan ID = ($id) tidak ditemukan!", 404);
@@ -240,10 +242,12 @@ class ReportRepository implements ReportInterface
                     }
                     $comment->save();
                 }
+                DB::commit();
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("COMPLETED", "Laporan dengan ID = ($id) Berhasil dihapus!");
             }
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }

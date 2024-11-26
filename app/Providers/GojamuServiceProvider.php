@@ -95,6 +95,13 @@ class GojamuServiceProvider extends ServiceProvider
             'App\Repositories\Like\LikeInterface',
             'App\Repositories\Like\LikeRepository'
         );
+
+        // FAVORITE_MEDIA ================
+        $this->app->bind(
+            'App\Repositories\Favorite_Media\Favorite_MediaInterface',
+            'App\Repositories\Favorite_Media\Favorite_MediaRepository'
+        );
+
         // RATING ================
         $this->app->bind(
             'App\Repositories\Rating\RatingInterface',

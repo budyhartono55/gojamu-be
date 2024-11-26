@@ -24,6 +24,7 @@ use App\Models\Like;
 use App\Models\Report;
 use App\Models\Rating;
 use App\Models\Comment;
+use App\Models\Favorite_Media;
 use Carbon\Carbon;
 use App\Models\Wilayah\Kecamatan;
 use Illuminate\Support\Facades\Http;
@@ -91,6 +92,9 @@ class MediaRepository implements MediaInterface
                 ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate(12);
             //clear eager load topics
@@ -146,6 +150,9 @@ class MediaRepository implements MediaInterface
                         ->orWhere('description', 'LIKE', '%' . $keyword . '%');
                 })
                 ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 }])
                 ->latest('created_at')
@@ -204,6 +211,9 @@ class MediaRepository implements MediaInterface
                     ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
                         $query->where('user_id', $userId);
                     }])
+                    ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                        $query->where('user_id', $userId);
+                    }])
                     ->latest('created_at')
                     ->paginate($limit);
 
@@ -260,6 +270,9 @@ class MediaRepository implements MediaInterface
                 ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->latest('created_at')
                 ->paginate($limit);
 
@@ -312,6 +325,9 @@ class MediaRepository implements MediaInterface
             $media = Media::withCount(['likes as liked_stat' => function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
                 ->find($id);
 
             if ($media) {
@@ -510,6 +526,7 @@ class MediaRepository implements MediaInterface
     public function deleteMedia($id)
     {
         try {
+            DB::beginTransaction();
             // search
             $media = Media::find($id);
             if (!$media) {
@@ -518,6 +535,7 @@ class MediaRepository implements MediaInterface
 
             //sync
             Like::where('media_id', $id)->delete();
+            Favorite_Media::where('media_id', $id)->delete();
             Comment::where('media_id', $id)->delete();
             Report::where('media_id', $id)->delete();
             // approved
@@ -525,9 +543,11 @@ class MediaRepository implements MediaInterface
             $del = $media->delete();
             if ($del) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
+                DB::commit();
                 return $this->success("COMPLETED", "Konten/Media dengan ID = ($id) Berhasil dihapus!");
             }
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
@@ -554,6 +574,9 @@ class MediaRepository implements MediaInterface
                 }
             ])
                 ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
                     $query->where('user_id', $userId);
                 }])
                 ->where('report_stat', 'attention')

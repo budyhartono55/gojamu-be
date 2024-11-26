@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
+use Illuminate\Support\Facades\DB;
 use App\Helpers\Helper;
 use App\Models\Ctg_Gallery;
 
@@ -285,6 +286,7 @@ class GalleryRepository implements GalleryInterface
     {
         try {
             // search
+            DB::beginTransaction();
             $gallery = Gallery::find($id);
             // return dd($gallery);
             if (!$gallery) {
@@ -298,11 +300,13 @@ class GalleryRepository implements GalleryInterface
             $del = $gallery->delete();
             if ($del) {
                 RedisHelper::dropKeys($this->generalRedisKeys);
+                DB::commit();
                 return $this->success("COMPLETED", "Gallery dengan ID = ($id) Berhasil dihapus!");
             }
 
             // approved
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }
