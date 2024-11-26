@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\CtgMediaController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\LikeController;
+use App\Http\Controllers\Api\Favorite_MediaController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\Ctg_GalleryController;
 use App\Http\Controllers\Api\Ctg_NewsController;
@@ -143,6 +144,10 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // LIKE
     // POST
     Route::post("/media/like", [LikeController::class, "insert"])->name("createLike");
+    // =======================================================================================================
+    // FAVORITE
+    // POST
+    Route::post("/media/favorite", [Favorite_MediaController::class, "insert"])->name("createLike");
     // =======================================================================================================
     // CTG_GALLERY
     // //GET

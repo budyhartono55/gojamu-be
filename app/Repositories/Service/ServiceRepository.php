@@ -233,42 +233,6 @@ class ServiceRepository implements ServiceInterface
         }
     }
 
-    // public function showBySlug($slug)
-    // {
-    //     try {
-    //         $key = $this->generalRedisKeys . "public_" . $slug;
-    //         $keyAuth = $this->generalRedisKeys . "auth_" . $slug;
-    //         $key = Auth::check() ? $keyAuth : $key;
-    //         if (Redis::exists($key)) {
-    //             $result = json_decode(Redis::get($key));
-    //             return $this->success("(CACHE): Detail Layanan dengan slug = ($slug)", $result);
-    //         }
-
-    //         $slug = Str::slug($slug);
-    //         $service = Service::where('slug', $slug)
-    //             ->latest('created_at')
-    //             ->first();
-
-    //         if ($service) {
-    //             $createdBy = User::select('name')->find($service->created_by);
-    //             $editedBy = User::select('name')->find($service->edited_by);
-    //             $ctgServices = Ctg_Service::select(['id', 'title_ctg', 'slug'])->find($service->ctg_service_id);
-
-    //             $service->ctg_service_id = optional($ctgServices)->only(['id', 'title_ctg', 'slug']);
-    //             $service->created_by = optional($createdBy)->only(['name']);
-    //             $service->edited_by = optional($editedBy)->only(['name']);
-
-    //             $key = Auth::check() ? $key : $key;
-    //             Redis::setex($key, 60, json_encode($service));
-    //             return $this->success("Detail Layanan dengan slug = ($slug)", $service);
-    //         } else {
-    //             return $this->error("Not Found", "Layanan dengan slug = ($slug) tidak ditemukan!", 404);
-    //         }
-    //     } catch (\Exception $e) {
-    //         return $this->error("Internal Server Error", $e->getMessage(), 499);
-    //     }
-    // }
-
     // findOne
     public function findById($id)
     {
@@ -458,6 +422,7 @@ class ServiceRepository implements ServiceInterface
     {
         try {
             // search
+            DB::beginTransaction();
             $service = Service::find($id);
             if (!$service) {
                 return $this->error("Not Found", "Layanan dengan ID = ($id) tidak ditemukan!", 404);
@@ -469,10 +434,12 @@ class ServiceRepository implements ServiceInterface
             // approved
             $del = $service->delete();
             if ($del) {
+                DB::commit();
                 RedisHelper::dropKeys($this->generalRedisKeys);
                 return $this->success("COMPLETED", "Layanan dengan ID = ($id) Berhasil dihapus!");
             }
         } catch (\Exception $e) {
+            DB::rollBack();
             return $this->error("Internal Server Error", $e->getMessage());
         }
     }

@@ -47,6 +47,10 @@ class Media extends Model
     {
         return $this->hasMany(Like::class, 'media_id', 'id');
     }
+    public function favorites_medias()
+    {
+        return $this->hasMany(Favorite_Media::class, 'media_id', 'id');
+    }
     public function ratings()
     {
         return $this->hasMany(Rating::class, 'media_id', 'id');
