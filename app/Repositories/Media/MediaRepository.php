@@ -64,11 +64,11 @@ class MediaRepository implements MediaInterface
         } elseif (!empty($getKeyword)) {
             return self::getAllMediaByKeyword($getKeyword, $limit);
         } else {
-            return self::getAllMedias();
+            return self::getAllMedias($limit);
         }
     }
 
-    public function getAllMedias()
+    public function getAllMedias($limit)
     {
         try {
 
@@ -96,7 +96,7 @@ class MediaRepository implements MediaInterface
                     $query->where('user_id', $userId);
                 }])
                 ->latest('created_at')
-                ->paginate(12);
+                ->paginate($limit);
             //clear eager load topics
             foreach ($media->items() as $mediaItem) {
                 foreach ($mediaItem->topics as $topic) {
