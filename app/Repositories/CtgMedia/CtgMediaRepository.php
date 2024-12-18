@@ -237,37 +237,21 @@ class CtgMediaRepository implements CtgMediaInterface
             if (!$ctg_media) {
                 return $this->error("Tidak ditemukan!", "Kategori Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             } else {
-                if ($request->hasFile('icon')) {
-                    if ($ctg_media->icon) {
-                        Storage::delete('public/icons/' . $ctg_media->icon);
-                        Storage::delete('public/thumbnails/t_icons/' . $ctg_media->icon);
-                    }
-                    $destination = 'public/icons';
-                    $image = $request->file('icon');
-                    $ctg_media['slug'] = Str::slug($request->title_ctg, '-');
-                    $imageName = $ctg_media->slug . '-' . time() . "." . $image->getClientOriginalExtension();
+                $ctg_media['title_ctg'] = $request->title_ctg;
+                $ctg_media['slug'] = Str::slug($request->title_ctg, '-');
 
-                    $ctg_media->icon = $imageName;
-                    $image->storeAs($destination, $imageName);
-                    // compress to thumbnail 
-                    Helper::resizeIcon($image, $imageName, $request);
+                //ttd
+                $ctg_media['created_by'] = $ctg_media->created_by;
+                $ctg_media['edited_by'] = Auth::user()->id;
+
+                $update = $ctg_media->save();
+                if ($update) {
+                    RedisHelper::dropKeys($this->generalRedisKeys);
+                    return $this->success("Kategori Konten/Media Berhasil diperharui!", $ctg_media);
                 }
-                $ctg_media->icon = $ctg_media->icon;
-            }
-            $ctg_media['title_ctg'] = $request->title_ctg;
-            $ctg_media['slug'] = Str::slug($request->title_ctg, '-');
-
-            //ttd
-            $ctg_media['created_by'] = $ctg_media->created_by;
-            $ctg_media['edited_by'] = Auth::user()->id;
-
-            $update = $ctg_media->save();
-            if ($update) {
-                RedisHelper::dropKeys($this->generalRedisKeys);
-                return $this->success("Kategori Konten/Media Berhasil diperharui!", $ctg_media);
             }
         } catch (\Exception $e) {
-            return $this->error("Internal Server Error", $e->getMessage());
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
         }
     }
 
