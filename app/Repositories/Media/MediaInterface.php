@@ -8,6 +8,7 @@ interface MediaInterface
 {
     // getAll
     public function getMedias($request);
+    public function getMediasOwner($request);
     public function findById($id);
     // insertData
     public function createMedia($request);

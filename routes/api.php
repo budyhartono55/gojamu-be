@@ -114,7 +114,12 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     Route::patch("/media/{id}", [MediaController::class, "edit"])->name("editMedia");
     // DELETE
     Route::delete("/media/{id}", [MediaController::class, "drop"])->name("deleteMedia");
+    //--------------------------------------------------------------------------
+    // MEDIA
+    // //GET
+    Route::get("/meta", [MediaController::class, "meta"])->name("meta");
     // =======================================================================================================
+
     // Comment
     // //GET
     // Route::get("/media/comment", [CommentController::class, "index"])->name("comment");

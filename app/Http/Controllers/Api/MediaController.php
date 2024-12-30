@@ -27,6 +27,10 @@ class MediaController extends Controller
     {
         return $this->mediaRepository->getMedias($request);
     }
+    public function meta(Request $request)
+    {
+        return $this->mediaRepository->getMediasOwner($request);
+    }
 
     public function reported()
     {

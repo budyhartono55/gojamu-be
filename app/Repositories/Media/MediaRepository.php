@@ -49,7 +49,6 @@ class MediaRepository implements MediaInterface
     public function getMedias($request)
     {
         $limit = Helper::limitDatas($request);
-        // $getSlug = $request->slug;
         $getCategory = $request->ctg;
         $getKeyword =  $request->search;
 
@@ -59,8 +58,6 @@ class MediaRepository implements MediaInterface
             } else {
                 return self::getAllMediaByCategorySlug($getCategory, $limit);
             }
-            // } elseif (!empty($getSlug)) {
-            //     return self::showBySlug($getSlug);
         } elseif (!empty($getKeyword)) {
             return self::getAllMediaByKeyword($getKeyword, $limit);
         } else {
@@ -476,7 +473,7 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
             $user = Auth::user();
-            if ($media->user_id !== $user->id && $user->role !== 'admin') {
+            if ($media->user_id !== $user->id && $user->role !== 'Admin') {
                 return $this->error("Forbidden", "Anda tidak memiliki akses untuk melakukan update pada media ini!", 403);
             }
 
@@ -530,8 +527,8 @@ class MediaRepository implements MediaInterface
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
             $user = Auth::user();
-            if ($media->user_id !== $user->id && $user->role !== 'admin') {
-                return $this->error("Forbidden", "Anda tidak memiliki akses untuk melakukan update pada media ini!", 403);
+            if ($media->user_id !== $user->id && $user->role !== 'Admin') {
+                return $this->error("Forbidden", "Anda tidak memiliki akses untuk melakukan delete pada media ini!", 403);
             }
 
             //sync
@@ -606,6 +603,278 @@ class MediaRepository implements MediaInterface
             }
 
             return $this->success("Tidak ada media dengan status perhatian.", []);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
+
+    //META/OWNER=====================================================================================================
+    public function getMediasOwner($request)
+    {
+        $limit = Helper::limitDatas($request);
+        $getCategoryOwner = $request->meta_ctg;
+        $getKeywordOwner =  $request->meta_search;
+
+        if (!empty($getCategoryOwner)) {
+            if (!empty($getKeywordOwner)) {
+                return self::getAllMediaByKeywordInCtgOwner($getCategoryOwner, $getKeywordOwner, $limit);
+            } else {
+                return self::getAllMediaByCategorySlugOwner($getCategoryOwner, $limit);
+            }
+        } elseif (!empty($getKeywordOwner)) {
+            return self::getAllMediaByKeywordOwner($getKeywordOwner, $limit);
+        } else {
+            return self::getAllMediasOwner($limit);
+        }
+    }
+    public function getAllMediasOwner($limit)
+    {
+        try {
+            $userId = Auth::id();
+            $key = $this->generalRedisKeys . "user_" . $userId . "_public_All_" . request()->get("page", 1);
+            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_All_" . request()->get("page", 1);
+            $key = Auth::check() ? $keyAuth : $key;
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("(CACHE): List Keseluruhan Konten/Media Milik User", $result);
+            }
+
+            $user = Auth::user();
+            $media = Media::with([
+                'createdBy',
+                'editedBy',
+                'ctgMedias',
+                'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }
+            ])
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->latest('created_at');
+            if ($user->role !== 'Admin') {
+                $media->where('user_id', $user->id);
+            }
+            $media = $media->paginate($limit);
+
+            // Clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            if ($media) {
+                $modifiedData = $media->items();
+                $modifiedData = array_map(function ($item) {
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                    return $item;
+                }, $modifiedData);
+
+                $key = Auth::check() ? $keyAuth : $key;
+                Redis::setex($key, 60, json_encode($media));
+                return $this->success("List Keseluruhan Konten/Media Milik User", $media);
+            }
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
+
+    public function getAllMediaByKeywordInCtgOwner($slug, $keyword, $limit)
+    {
+        try {
+            $userId = Auth::id();
+            $key = $this->generalRedisKeys . "user_" . $userId . "_public_" . '_limit#' . $limit;
+            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_" . '_limit#' . $limit;
+            $key = Auth::check() ? $keyAuth : $key;
+            if (Redis::exists($key . $slug . "_" .  $keyword)) {
+                $result = json_decode(Redis::get($key . $slug . "_" .  $keyword));
+                return $this->success("(CACHE): List Konten/Media Milik User dengan keyword = ($keyword) dalam Kategori ($slug).", $result);
+            }
+
+            $user = Auth::user();
+            $category = CtgMedia::where('slug', $slug)->first();
+            if (!$category) {
+                return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
+            }
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
+                ->where('ctg_media_id', $category->id)
+                ->where(function ($query) use ($keyword) {
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+                })
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->latest('created_at');
+            if ($user->role !== 'Admin') {
+                $media->where('user_id', $user->id);
+            }
+            $media = $media->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            // if ($media->total() > 0) {
+            if ($media) {
+                $modifiedData = $media->items();
+                $modifiedData = array_map(function ($item) {
+
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                    return $item;
+                }, $modifiedData);
+
+                $key = Auth::check() ? $keyAuth .  $slug . "_" .  $keyword : $key .  $slug . "_" .  $keyword;
+                Redis::setex($key, 60, json_encode($media));
+
+                return $this->success("List Keseluruhan Konten/Media Milik User berdasarkan keyword = ($keyword) dalam Kategori ($slug)", $media);
+            }
+            return $this->error("Not Found", "Konten/Media Milik User dengan keyword = ($keyword) dalam Kategori ($slug)tidak ditemukan!", 404);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage(), 499);
+        }
+    }
+    public function getAllMediaByCategorySlugOwner($slug, $limit)
+    {
+        try {
+            $isAuthenticated = Auth::check();
+            $userId = Auth::id();
+
+            $key = $this->generalRedisKeys . "user_" . $userId . "_public_" . '_limit#' . $limit;
+            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_" . '_limit#' . $limit;
+            $key = $isAuthenticated ? $keyAuth : $key;
+
+            if (Redis::exists($key . $slug)) {
+                $result = json_decode(Redis::get($key . $slug));
+                return $this->success("(CACHE): List Media Milik User berdasarkan kategori slug = ($slug).", $result);
+            }
+
+            $user = Auth::user();
+            $category = CtgMedia::where('slug', $slug)->first();
+            if (!$category) {
+                return $this->error("Not Found", "Kategori dengan slug = ($slug) tidak ditemukan!", 404);
+            }
+
+            $query = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
+                ->where('ctg_media_id', $category->id)
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->latest('created_at');
+
+            if ($user && $user->role !== 'Admin') {
+                $query->where('user_id', $userId);
+            }
+            $media = $query->paginate($limit);
+
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            $modifiedData = $media->items();
+            $modifiedData = array_map(function ($item) {
+                $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                return $item;
+            }, $modifiedData);
+
+            $key = Auth::check() ? $keyAuth . $slug : $key . $slug;
+            Redis::setex($key, 60, json_encode($media));
+
+            return $this->success("List Media Milik User berdasarkan kategori slug = ($slug).", $media);
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
+        }
+    }
+
+    public function getAllMediaByKeywordOwner($keyword, $limit)
+    {
+        try {
+            $userId = Auth::id();
+            $key = $this->generalRedisKeys . "user_" . $userId . "_public_" . '_limit#' . $limit;
+            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_" . '_limit#' . $limit;
+            $key = Auth::check() ? $keyAuth : $key;
+            if (Redis::exists($key . $keyword)) {
+                $result = json_decode(Redis::get($key . $keyword));
+                return $this->success("(CACHE): List Konten/Media Milik User dengan keyword = ($keyword).", $result);
+            }
+
+            $user = Auth::user();
+            $media = Media::with(['createdBy', 'editedBy', 'ctgMedias', 'topics' => function ($query) {
+                $query->select('id', 'title', 'slug');
+            }])
+                ->where(function ($query) use ($keyword) {
+                    $query->where('title_media', 'LIKE', '%' . $keyword . '%')
+                        ->orWhere('description', 'LIKE', '%' . $keyword . '%');
+                })
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->withCount(['favorites_medias as favorited_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->latest('created_at');
+            if ($user->role !== 'Admin') {
+                $media->where('user_id', $user->id);
+            }
+            $media = $media->paginate($limit);
+
+            //clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            if ($media) {
+                $modifiedData = $media->items();
+                $modifiedData = array_map(function ($item) {
+
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                    return $item;
+                }, $modifiedData);
+
+                $key = Auth::check() ? $keyAuth . $keyword : $key . $keyword;
+                Redis::setex($key, 60, json_encode($media));
+
+                return $this->success("List Keseluruhan Konten/Media Milik User berdasarkan keyword = ($keyword)", $media);
+            } else {
+                return $this->error("Not Found", "Konten/Media Milik User dengan keyword = ($keyword) tidak ditemukan!", 404);
+            }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage());
         }
