@@ -449,7 +449,6 @@ class MediaRepository implements MediaInterface
         }
     }
 
-    // update
     public function updateMedia($request, $id)
     {
         $validator = Validator::make(
@@ -467,22 +466,21 @@ class MediaRepository implements MediaInterface
                 'ctg_media_id.required' => 'Masukkan ketegori media!',
             ]
         );
-
-        //check if validation fails
         if ($validator->fails()) {
             return $this->error("Terjadi Kesalahan!, Validasi Gagal.", $validator->errors(), 400);
         }
-        try {
-            // search
-            $media = Media::find($id);
 
-            // checkID
+        try {
+            $media = Media::find($id);
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
             }
+            $user = Auth::user();
+            if ($media->user_id !== $user->id && $user->role !== 'admin') {
+                return $this->error("Forbidden", "Anda tidak memiliki akses untuk melakukan update pada media ini!", 403);
+            }
 
-
-            // approved
+            // Approved updates
             $media['title_media'] = $request->title_media ?? $media->title_media;
             $media['description'] = $request->description ?? $media->description;
             $media['ytb_url'] = $request->ytb_url ?? $media->ytb_url;
@@ -505,11 +503,9 @@ class MediaRepository implements MediaInterface
                 }
             }
 
-            $media['user_id'] = $media->user_id;
-            $media['created_by'] = $media->created_by;
-            $media['edited_by'] = Auth::user()->id;
+            $media['edited_by'] = Auth::id();
 
-            //save
+            // Save
             $update = $media->save();
             $media->topics()->sync($topic_ids);
 
@@ -522,6 +518,7 @@ class MediaRepository implements MediaInterface
         }
     }
 
+
     // delete
     public function deleteMedia($id)
     {
@@ -531,6 +528,10 @@ class MediaRepository implements MediaInterface
             $media = Media::find($id);
             if (!$media) {
                 return $this->error("Not Found", "Konten/Media dengan ID = ($id) tidak ditemukan!", 404);
+            }
+            $user = Auth::user();
+            if ($media->user_id !== $user->id && $user->role !== 'admin') {
+                return $this->error("Forbidden", "Anda tidak memiliki akses untuk melakukan update pada media ini!", 403);
             }
 
             //sync
