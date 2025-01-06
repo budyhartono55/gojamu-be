@@ -11,6 +11,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Redis;
 use App\Helpers\RedisHelper;
+use App\Helpers\Helper;
+
 
 
 
@@ -28,6 +30,12 @@ class Favorite_MediaRepository implements Favorite_MediaInterface
         $this->generalRedisKeys = "media_";
     }
 
+
+    public function getFavorite($request)
+    {
+        $limit = Helper::limitDatas($request);
+        return self::getFavoritedMedias($limit);
+    }
     // create
     public function toggleFavorite_Media($request)
     {
@@ -81,6 +89,63 @@ class Favorite_MediaRepository implements Favorite_MediaInterface
             }
         } catch (\Exception $e) {
             return $this->error("Internal Server Error", $e->getMessage(), 500);
+        }
+    }
+
+    public function getFavoritedMedias($limit)
+    {
+        try {
+            $key = $this->generalRedisKeys . "favorites_" . "limit_" . $limit . "_" . request()->get("page", 1);
+            if (Redis::exists($key)) {
+                $result = json_decode(Redis::get($key));
+                return $this->success("(CACHE): List Media Favorit", $result);
+            }
+
+            $userId = Auth::id();
+            if (!$userId) {
+                return $this->error("Unauthorized", "User not authenticated.");
+            }
+
+            $media = Media::with([
+                'createdBy',
+                'editedBy',
+                'ctgMedias',
+                'topics' => function ($query) {
+                    $query->select('id', 'title', 'slug');
+                }
+            ])
+                ->withCount(['likes as liked_stat' => function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                }])
+                ->whereHas('favorites_medias', function ($query) use ($userId) {
+                    $query->where('user_id', $userId);
+                })
+                ->latest('created_at')
+                ->paginate($limit);
+
+            // clear eager load topics
+            foreach ($media->items() as $mediaItem) {
+                foreach ($mediaItem->topics as $topic) {
+                    $topic->makeHidden(['pivot']);
+                }
+            }
+
+            if ($media) {
+                $modifiedData = $media->items();
+                $modifiedData = array_map(function ($item) {
+                    $item->created_by = optional($item->createdBy)->only(['id', 'name', 'image']);
+                    $item->edited_by = optional($item->editedBy)->only(['id', 'name']);
+                    $item->ctg_media_id = optional($item->ctgMedias)->only(['id', 'title_ctg', 'slug']);
+
+                    unset($item->createdBy, $item->editedBy, $item->ctgMedias);
+                    return $item;
+                }, $modifiedData);
+
+                Redis::setex($key, 60, json_encode($media));
+                return $this->success("List Media Favorit", $media);
+            }
+        } catch (\Exception $e) {
+            return $this->error("Internal Server Error", $e->getMessage());
         }
     }
 }

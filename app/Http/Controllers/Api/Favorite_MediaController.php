@@ -22,4 +22,8 @@ class Favorite_MediaController extends Controller
     {
         return $this->favorite_mediaRepository->toggleFavorite_Media($request);
     }
+    public function core(Request $request)
+    {
+        return $this->favorite_mediaRepository->getFavorite($request);
+    }
 }

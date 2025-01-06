@@ -69,8 +69,8 @@ class MediaRepository implements MediaInterface
     {
         try {
 
-            $key = $this->generalRedisKeys . "public_All_" . request()->get("page", 1);
-            $keyAuth = $this->generalRedisKeys . "auth_All_" . request()->get("page", 1);
+            $key = $this->generalRedisKeys . "public_All_" . "limit_" . $limit . "_" . request()->get("page", 1);
+            $keyAuth = $this->generalRedisKeys . "auth_All_" . "limit_" . $limit . "_" . request()->get("page", 1);
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));
@@ -631,8 +631,8 @@ class MediaRepository implements MediaInterface
     {
         try {
             $userId = Auth::id();
-            $key = $this->generalRedisKeys . "user_" . $userId . "_public_All_" . request()->get("page", 1);
-            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_All_" . request()->get("page", 1);
+            $key = $this->generalRedisKeys . "user_" . $userId . "_public_All_" . "limit_" . $limit . "_" . request()->get("page", 1);
+            $keyAuth = $this->generalRedisKeys . "user_" . $userId . "_auth_All_" . "limit_" . $limit . "_" . request()->get("page", 1);
             $key = Auth::check() ? $keyAuth : $key;
             if (Redis::exists($key)) {
                 $result = json_decode(Redis::get($key));

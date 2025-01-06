@@ -153,6 +153,7 @@ Route::middleware(['auth:sanctum', 'XssSanitizer:true', 'LogApiResponse'])->grou
     // FAVORITE
     // POST
     Route::post("/media/favorite", [Favorite_MediaController::class, "insert"])->name("createLike");
+    Route::get("/favorite", [Favorite_MediaController::class, "core"])->name("favorite");
     // =======================================================================================================
     // CTG_GALLERY
     // //GET

@@ -8,4 +8,5 @@ interface Favorite_MediaInterface
 {
     // insertData
     public function toggleFavorite_Media($request);
+    public function getFavorite($request);
 }
