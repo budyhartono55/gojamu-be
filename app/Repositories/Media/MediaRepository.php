@@ -351,20 +351,30 @@ class MediaRepository implements MediaInterface
                 $comments = $media->comments()
                     ->with([
                         'users:id,name,image',
-                        'replies' => function ($query) {
-                            $query->with('users:id,name,image')
-                                ->take(1);
-                        }
+                        'replies.users:id,name,image'
                     ])
                     ->whereNull('parent_id')
                     ->orderBy('created_at', 'desc')
                     ->get();
 
-
                 $comments->each(function ($comment) {
                     $comment->user_name = $comment->users->name;
                     $comment->user_image = $comment->users->image;
                     unset($comment->users);
+
+                    $processReplies = function ($replies) use (&$processReplies) {
+                        $replies->each(function ($reply) use (&$processReplies) {
+                            $reply->user_name = $reply->users->name;
+                            $reply->user_image = $reply->users->image;
+                            unset($reply->users);
+
+                            if ($reply->replies->isNotEmpty()) {
+                                $processReplies($reply->replies);
+                            }
+                        });
+                    };
+
+                    $processReplies($comment->replies);
                 });
                 $media->comments = $comments;
 

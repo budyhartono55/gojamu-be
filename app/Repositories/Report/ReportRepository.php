@@ -5,6 +5,7 @@ namespace App\Repositories\Report;
 use App\Repositories\Report\ReportInterface as ReportInterface;
 use App\Models\Report;
 use App\Models\Media;
+use App\Models\User;
 use App\Models\Comment;
 use App\Traits\API_response;
 use Illuminate\Support\Facades\Auth;
@@ -62,7 +63,7 @@ class ReportRepository implements ReportInterface
                 return $this->success($cacheMessage, $result);
             }
 
-            $reportQuery = Report::with(['createdBy', 'editedBy']);
+            $reportQuery = Report::with(['medias', 'comments', 'createdBy', 'editedBy']);
             if ($type === 'media') {
                 $reportQuery->whereNotNull('media_id')->whereNull('comment_id');
             } elseif ($type === 'comment') {
@@ -73,11 +74,30 @@ class ReportRepository implements ReportInterface
             if ($report) {
                 $modifiedData = $report->items();
                 $modifiedData = array_map(function ($item) {
+                    $media = optional($item->medias)->only(['id', 'title_media', 'user_id']);
+                    if ($media) {
+                        $user_media = User::find($media['user_id']);
+                        $media['user_id'] = $user_media ? ['id' => $user_media->id, 'name' => $user_media->name] : null;
+                    }
+
+                    $comment = optional($item->comments)->only(['id', 'comment', 'user_id', 'media_id']);
+                    if ($comment) {
+                        $user_comment = User::find($comment['user_id']);
+                        $comment['user_id'] = $user_comment ? ['id' => $user_comment->id, 'name' => $user_comment->name] : null;
+
+                        $media_comment = Media::find($comment['media_id']);
+                        $comment['media_id'] = $media_comment ? ['id' => $media_comment->id, 'title_media' => $media_comment->title_media] : null;
+                    }
+
+                    $item->media_id = $media;
+                    $item->comment_id = $comment;
                     $item->created_by = optional($item->createdBy)->only(['name']);
                     $item->edited_by = optional($item->editedBy)->only(['name']);
-                    unset($item->createdBy, $item->editedBy);
+
+                    unset($item->medias, $item->comments, $item->createdBy, $item->editedBy);
                     return $item;
                 }, $modifiedData);
+
 
                 Redis::setex($key, 60, json_encode($report));
                 $message = ($type === 'media') ?
