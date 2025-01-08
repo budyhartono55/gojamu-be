@@ -357,7 +357,9 @@ class MediaRepository implements MediaInterface
                         }
                     ])
                     ->whereNull('parent_id')
+                    ->orderBy('created_at', 'desc')
                     ->get();
+
 
                 $comments->each(function ($comment) {
                     $comment->user_name = $comment->users->name;

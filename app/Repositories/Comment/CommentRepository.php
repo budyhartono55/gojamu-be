@@ -154,6 +154,7 @@ class CommentRepository implements CommentInterface
             if ($create) {
                 Media::where('id', $mediaId)->increment('comment_count');
                 RedisHelper::dropKeys($this->generalRedisKeys);
+                RedisHelper::dropKeys('media_');
                 return $this->success("Komentar Berhasil ditambahkan!", $comment);
             }
         } catch (\Exception $e) {
@@ -209,6 +210,7 @@ class CommentRepository implements CommentInterface
             if ($update) {
                 // Media::where('id', $mediaId)->increment('comment_count');
                 RedisHelper::dropKeys($this->generalRedisKeys);
+                RedisHelper::dropKeys('media_');
                 return $this->success("Komentar Berhasil diperbaharui!", $comment);
             }
         } catch (\Exception $e) {
@@ -235,6 +237,7 @@ class CommentRepository implements CommentInterface
                 Media::where('id', $mediaId)->decrement('comment_count', $totalDeleted);
             }
             RedisHelper::dropKeys($this->generalRedisKeys);
+            RedisHelper::dropKeys('media_');
 
             return $this->success("COMPLETED", "Komentar dengan ID = ($id) dan $resTerkait komentar terkait berhasil dihapus! #(akumulasi $totalDeleted total komentar terhapus)");
         } catch (\Exception $e) {

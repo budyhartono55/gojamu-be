@@ -350,6 +350,9 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     Route::get("/public/service", [ServiceController::class, "index"])->name("service");
     Route::get("/public/service/{id}", [ServiceController::class, "findById"])->name("findOne");
     // =======================================================================================================
+    // Comment
+    Route::get("/public/media/comment/{id}", [CommentController::class, "findById"])->name("findOne");
+
 
 
     // N E W S 
