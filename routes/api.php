@@ -352,6 +352,10 @@ Route::group(['middleware' => ['LogApiResponse', 'XssSanitizer']], function () {
     // =======================================================================================================
     // Comment
     Route::get("/public/media/comment/{id}", [CommentController::class, "findById"])->name("findOne");
+    // =======================================================================================================
+    // Rating
+    Route::get("/public/media/rate/{id}", [RatingController::class, "findByIdMedia"])->name("findOne");
+
 
 
 
